@@ -61,8 +61,8 @@ You should optimize receive quality for the iBoost main unit (0x22). I don't hav
 
 ## CC1101 Packet Format
 
-![C1101 Packet Format](.images/cc1101-packet-format.png)
+![C1101 Packet Format](./images/cc1101-packet-format.png)
 
 ## ESP32 Wroom 32 Pinout
 
-![ESP32 Wroom 32](.images/ESP32-pinout-30pins.png)
+![ESP32 Wroom 32](./images/ESP32-pinout-30pins.png)
