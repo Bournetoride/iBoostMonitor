@@ -19,7 +19,7 @@ Currently using an ESP32 Wroom 32 and a CC1101 Module purchased from eBay.
 
 ## Wiring 
 
-(images/iBoostMonitor.png)
+(./images/iBoostMonitor.png)
 
 ## Frequency tuning
 
