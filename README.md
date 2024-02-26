@@ -8,7 +8,7 @@ Tasks:
 
 # iBoost Monitor
 
-[Marlec iBoost] (https://www.marlec.co.uk/product/solar-iboost/) Monitor 
+[Marlec iBoost](https://www.marlec.co.uk/product/solar-iboost/) Monitor 
 
 This project is based on the original by [JMSwanson / ESP-Home-iBoost](https://github.com/JNSwanson/ESP-Home-iBoost) which integrates with ESPHome which I currently do not use.
 
