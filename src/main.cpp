@@ -9,6 +9,7 @@
 #define SS_PIN 5
 #define MISO_PIN 19
 //#define GDO0_PIN 2      // Not used in this program
+#define MSG_BUFFER_SIZE	(50)
 
 // SCK_PIN = 18; MISO_PIN = 19; MOSI_PIN = 23; SS_PIN = 5; GDO0 = 2;
 CC1101 radio(SS_PIN,  MISO_PIN);   // SS (CSN), MISO
@@ -22,7 +23,7 @@ enum {
     SAVED_TOTAL = 0xCE
 };
 
-double today, yesterday, last7, last28, total;
+long today, yesterday, last7, last28, total;
   
 uint32_t pingTimer;         // used for the periodic pings see below
 uint32_t ledTimer;          // used for LED blinking when we receive a packet
@@ -35,9 +36,9 @@ uint8_t address[2];         // this is the address of the sender
 uint8_t addressLQI, rxLQI;  // signal strength test 
 bool addressValid;
 byte packet[65];            // The CC1101 library sets the biggest packet at 61
-String ipAddress = "0:0:0:0";
 WiFiClient wifiClient;
 PubSubClient client(wifiClient);
+char msg[MSG_BUFFER_SIZE];
 
 long lastReconnectAttempt = 0;  // Used for non blocking MQTT reconnect
 String clientId = "ESP32Client-";
@@ -50,14 +51,6 @@ void radioSetup();
 void receivePacket(void);
 void transmitPacket(void);
 
-/*
-#define MSG_BUFFER_SIZE	(50)
-char msg[MSG_BUFFER_SIZE];
-snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
-Serial.print("Publish message: ");
-Serial.println(msg);
-client.publish("outTopic", msg);
-*/
 
 /**
  * @brief Set up everything. SPI, WiFi, MQTT, and CC1101
@@ -80,8 +73,8 @@ void setup() {
         Serial.print(".");
     }
     Serial.println("");
-    ipAddress = "IP:" + WiFi.localIP().toString();
-    Serial.println(ipAddress);
+    Serial.print("IP Address:"); 
+    Serial.println(WiFi.localIP().toString());
 
     /* MQTT setup - this will be used to send data to the MQTT broker on a Raspberry 
        Pi so that it can be saved to a database (InfluxDb) for viewing in Grafana and
@@ -319,6 +312,11 @@ void receivePacket(void) {
             Serial.print(total);
             Serial.print(" Wh   Boost Time: ");
             Serial.println(boostTime);
+
+            snprintf (msg, MSG_BUFFER_SIZE, "Today: %ld Wh", today);
+            Serial.print("Publish message: ");
+            Serial.println(msg);
+            //client.publish("outTopic", msg);
         }
         // Update LED timer to flash LED (packet received)
         ledTimer = millis();
