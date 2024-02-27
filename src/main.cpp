@@ -314,7 +314,7 @@ void receivePacket(void) {
             Serial.println(boostTime);
 
             snprintf (msg, MSG_BUFFER_SIZE, "Today: %ld Wh", today);
-            Serial.print("Publish message: ");
+            Serial.print("MQTT publish message: ");
             Serial.println(msg);
             //client.publish("outTopic", msg);
         }
