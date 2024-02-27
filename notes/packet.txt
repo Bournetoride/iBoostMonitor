@@ -130,7 +130,8 @@ Sender Battery OK
 Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
 
 ####################################################################################################################################
-# Water tank was HOT but now not - no hot water has been taken out of the tank, we're now 2 hours later from the water getting hot #
+# Water tank was HOT but now not - no hot water has been taken out of the tank, we're now 2 hours later from the water getting     #
+# hot and the HOT flag vanishes.  A few minutes later it's back again!                                                             #
 ####################################################################################################################################
 Sent request: Saved Last 28 Days
 Frame: 23,b3,22,00,00,00,00,01,00,00,00,02,00,00,00,00,00,00,85,dd,fe,ff,a0,a0,cd,2d,ea,00,00,00,00,00,00,00,00,00,00,len=37 RSSI=-65 LQI=1
