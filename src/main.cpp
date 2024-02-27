@@ -39,9 +39,31 @@ String ipAddress = "0:0:0:0";
 WiFiClient wifiClient;
 PubSubClient client(wifiClient);
 
-void reconnect(void);
+long lastReconnectAttempt = 0;  // Used for non blocking MQTT reconnect
+String clientId = "ESP32Client-";
 
-void setup()  {
+
+/* Function prototypes */
+void connectToMQTTBroker(void);
+bool reconnectToMQTTBroker(void);
+void radioSetup();
+void receivePacket(void);
+void transmitPacket(void);
+
+/*
+#define MSG_BUFFER_SIZE	(50)
+char msg[MSG_BUFFER_SIZE];
+snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
+Serial.print("Publish message: ");
+Serial.println(msg);
+client.publish("outTopic", msg);
+*/
+
+/**
+ * @brief Set up everything. SPI, WiFi, MQTT, and CC1101
+ * 
+ */
+void setup() {
     addressLQI = 255; // set received LQI to lowest value
     addressValid = false;
 
@@ -51,18 +73,83 @@ void setup()  {
     Serial.println();
     Serial.println("SPI OK");
 
+    Serial.print("Connecting to Wi-Fi...");
     WiFi.begin(SSID, WIFI_PASSWORD);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
     }
     Serial.println("");
-    Serial.println("Connecting to Wi-Fi...");
     ipAddress = "IP:" + WiFi.localIP().toString();
     Serial.println(ipAddress);
 
+    /* MQTT setup - this will be used to send data to the MQTT broker on a Raspberry 
+       Pi so that it can be saved to a database (InfluxDb) for viewing in Grafana and
+       for another ESP32 with a display to show the information along with all the 
+       solar information it currently displays from the solar invertor.  Aditionally, 
+       the state of the water (HOT or not) will be sent to an external web page so 
+       we can view it if we're not at home to see if we need to put the hot water on
+       or not.
+    */
+    clientId += String(random(0xffff), HEX);
     client.setServer(MQTT_SERVER, MQTT_PORT);
+    connectToMQTTBroker();
 
+    // Set up the radio
+    radioSetup();
+    
+    /* LED setup - so we can use the module without serial terminal,
+       set low to start so it's off and flashes when it receives a packet */
+    pinMode(LED_BUILTIN, OUTPUT);   
+    digitalWrite(LED_BUILTIN, LOW);
+
+    Serial.println("Setup Finished");
+}
+
+/**
+ * @brief Main loop
+ * 
+ */
+void loop(void) {
+    // Ensure we're connected to the MQTT server
+    if (!client.connected()) {
+        long now = millis();
+        if (now - lastReconnectAttempt > 5000) {
+            lastReconnectAttempt = now;
+            // Attempt to reconnect
+            if (reconnectToMQTTBroker()) {
+                lastReconnectAttempt = 0;
+            }
+        }
+    } else {
+        // MQTT - We're not interested in receiving anything, only publishing.
+        client.loop();
+    }
+
+
+    /* Logic to turn on the LED for 200ms without blocking the loop - move to RTOS task? */
+    if (millis() - ledTimer > 200)
+        digitalWrite(LED_BUILTIN, LOW);
+    else
+        digitalWrite(LED_BUILTIN, HIGH);
+
+    receivePacket();
+
+    if(addressValid) {
+        if ((millis() - pingTimer > 10000) || boostRequest) { // ping every 10sec
+            if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) {
+                transmitPacket();
+            }
+        }
+    }
+}
+
+
+/**
+ * @brief Set up the CC1101 for receiving iBoost packets
+ * 
+ */
+void radioSetup() {
     radio.reset();
     radio.begin(868.350e6); // Freq, do not forget the "e6"
     radio.setMaxPktSize(61);
@@ -107,35 +194,15 @@ void setup()  {
     radio.strobe(CC1101_SIDLE); 
     radio.strobe(CC1101_SPWD); 
 
-    Serial.println("Radio OK");
     radio.setRXstate();             // Set the current state to RX : listening for RF packets
-    
-    /* LED setup - so we can use the module without serial terminal,
-       set low to start so it's off and flashes when it receives a packet */
-    pinMode(LED_BUILTIN, OUTPUT);   
-    digitalWrite(LED_BUILTIN, LOW);
-
-    Serial.println("Setup Finished");
+    Serial.println("CC1101 set up complete, set to Rx");
 }
 
-
-void loop(void) {
-    // Ensure we're connected to the MQTT server
-    if (!client.connected()) {
-        reconnect();
-    }
-
-    // MQTT - We're not interested in receiving anything, only publishing so no callback required.
-    // client.loop(); 
-
-    /* Logic to turn on the LED for 200ms without blocking the loop, not using 
-        delay() which would block the loop - move to RTOS task?
-    */
-    if (millis() - ledTimer > 200)
-        digitalWrite(LED_BUILTIN, LOW);
-    else
-        digitalWrite(LED_BUILTIN, HIGH);
-
+/**
+ * @brief Handle the receipt of a packet from the CC1101
+ * 
+ */
+void receivePacket(void) { 
     // Receive part. if GDO0 is connected with D1 you can use it to detect incoming packets
     //if (digitalRead(D1)) {
     byte pkt_size = radio.getPacket(packet);
@@ -256,111 +323,114 @@ void loop(void) {
         // Update LED timer to flash LED (packet received)
         ledTimer = millis();
     }
+}
 
-    if(addressValid) {
-        if ((millis() - pingTimer > 10000) || boostRequest) { // ping every 10sec
-            if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) {
-                memset(txBuf, 0, sizeof(txBuf));
+/**
+ * @brief Transmit a packet to the iBoost main unit to request information
+ * 
+ */
+void transmitPacket(void) {
+    memset(txBuf, 0, sizeof(txBuf));
 
-                if ((request < 0xca) || (request > 0xce)) 
-                    request = 0xca;
+    if ((request < 0xca) || (request > 0xce)) 
+        request = 0xca;
 
-                txBuf[0] = address[0]; //payload
-                txBuf[1] = address[1];		  
-                txBuf[2] = 0x21;
-                txBuf[3] = 0x8;
-                txBuf[4] = 0x92;
-                txBuf[5] = 0x7;
-                txBuf[8] = 0x24;
-                txBuf[10] = 0xa0;
-                txBuf[11] = 0xa0;
-                txBuf[12] = request; // request information (on this topic) from the main unit
-                txBuf[14] = 0xa0;
-                txBuf[15] = 0xa0;
-                txBuf[16] = 0xc8;
-                
-            // Not interested in boost in this program
-            //   if(boostRequest){
-            //     txBuf[4] = 0x18; // set boost time
-            //     txBuf[18] = boostTime;
-            //     boostRequest = false;
-            //   }
+    txBuf[0] = address[0]; //payload
+    txBuf[1] = address[1];		  
+    txBuf[2] = 0x21;
+    txBuf[3] = 0x8;
+    txBuf[4] = 0x92;
+    txBuf[5] = 0x7;
+    txBuf[8] = 0x24;
+    txBuf[10] = 0xa0;
+    txBuf[11] = 0xa0;
+    txBuf[12] = request; // request information (on this topic) from the main unit
+    txBuf[14] = 0xa0;
+    txBuf[15] = 0xa0;
+    txBuf[16] = 0xc8;
+    
+// Not interested in boost in this program
+//   if(boostRequest){
+//     txBuf[4] = 0x18; // set boost time
+//     txBuf[18] = boostTime;
+//     boostRequest = false;
+//   }
 
-                radio.strobe(CC1101_SIDLE);
-                radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
-                radio.writeBurstRegister(CC1101_TXFIFO, txBuf, 29);   // write the data to the TX FIFO
-                radio.strobe(CC1101_STX);
-                delay(5);
-                radio.strobe(CC1101_SWOR);
-                delay(5);
-                radio.strobe(CC1101_SFRX);
-                radio.strobe(CC1101_SIDLE);
-                radio.strobe(CC1101_SRX);
-                Serial.print("Sent request: ");
-                switch (request) {
-                    case   SAVED_TODAY:
-                        Serial.println("Saved Today");
-                        break;
-                    case   SAVED_YESTERDAY:
-                        Serial.println("Saved Yesterday");
-                        break;
-                    case   SAVED_LAST_7:
-                        Serial.println("Saved Last 7 Days");
-                        break;
-                    case   SAVED_LAST_28:
-                        Serial.println("Saved Last 28 Days");
-                        break;
-                    case   SAVED_TOTAL:
-                        Serial.println("Saved In Total");
-                        break;
-                }
+    radio.strobe(CC1101_SIDLE);
+    radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
+    radio.writeBurstRegister(CC1101_TXFIFO, txBuf, 29);   // write the data to the TX FIFO
+    radio.strobe(CC1101_STX);
+    delay(5);
+    radio.strobe(CC1101_SWOR);
+    delay(5);
+    radio.strobe(CC1101_SFRX);
+    radio.strobe(CC1101_SIDLE);
+    radio.strobe(CC1101_SRX);
+    Serial.print("Sent request: ");
+    switch (request) {
+        case   SAVED_TODAY:
+            Serial.println("Saved Today");
+            break;
+        case   SAVED_YESTERDAY:
+            Serial.println("Saved Yesterday");
+            break;
+        case   SAVED_LAST_7:
+            Serial.println("Saved Last 7 Days");
+            break;
+        case   SAVED_LAST_28:
+            Serial.println("Saved Last 28 Days");
+            break;
+        case   SAVED_TOTAL:
+            Serial.println("Saved In Total");
+            break;
+    }
 
-                request++;
+    request++;
 
-                // Update timer for pinging main unit for information, currently every 10 seconds
-                pingTimer = millis();
-            }
+    // Update timer for pinging main unit for information, currently every 10 seconds
+    pingTimer = millis();
+}
+
+/**
+ * @brief Attempt to connect with the MQTT broker
+ * 
+ */
+void connectToMQTTBroker(void) {
+    // Loop until we're reconnected
+    boolean result = false;
+
+    while (!client.connected()) {
+        Serial.print("Attempting MQTT connection...");
+        // Attempt to connect
+        if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
+            Serial.println("connected");
+            client.setSocketTimeout(120);
+
+            client.publish("solar/water", "Connected");
+        } else {
+            Serial.print("failed, rc=");
+            Serial.print(client.state());
+            Serial.println(" trying again in 5 seconds");
+            // Wait 5 seconds before retrying
+            delay(5000);
         }
     }
 }
 
 /**
- * @brief Attempt to reconnect with the MQTT broker
+ * @brief Attempt to reconnect with the MQTT broker, non blocking
  * 
+ * @return bool True if reconnect was successful, false if not
  */
-void reconnect(void) {
-  // Loop until we're reconnected
-  String clientId = "ESP32S3Client-";
-  clientId += String(random(0xffff), HEX);
-  boolean result = false;
+bool reconnectToMQTTBroker(void) {
+    bool connected = false;
 
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
+    Serial.print("Attempting to reconnect with MQTT server...");
     if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
-      Serial.println("connected");
-      client.setSocketTimeout(120);
+        Serial.println("connected");
+        client.setSocketTimeout(120);
+        connected = true;
+    } 
 
-    // Currently not interested in subscribing to anything
-    //   // subscribe to topics we're interested in
-    //   if (client.subscribe("solar/pvnow", 0)) {
-    //     Serial.println("Subscribed to solar/pvnow");
-    //   };
-    //   if (client.subscribe("solar/pvtotal", 0)) {
-    //     Serial.println("Subscribed to solar/pvtotal");
-    //   }
-    //   if (client.subscribe("weather/description", 0)) {
-    //     Serial.println("Subscribed to weather/description");
-    //   }
-    //   if (client.subscribe("weather/outsidetemp", 0)) {
-    //     Serial.println("Subscribed to weather/outsidetemp");
-    //   }
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
+    return connected;
 }

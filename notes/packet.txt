@@ -128,3 +128,49 @@ Heating: 0  P1: -1327635  Import: -3404  P2: 3412  P3: 0  P4: 0
 Water Tank HOT
 Sender Battery OK
 Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
+
+####################################################################################################################################
+# Water tank was HOT but now not - no hot water has been taken out of the tank, we're now 2 hours later from the water getting hot #
+####################################################################################################################################
+
+Sent request: Saved Last 28 Days
+Frame: 23,b3,22,00,00,00,00,01,00,00,00,02,00,00,00,00,00,00,85,dd,fe,ff,a0,a0,cd,2d,ea,00,00,00,00,00,00,00,00,00,00,len=37 RSSI=-65 LQI=1
+Heating: 0  P1: -74363  Import: -190  P2: 59949  P3: 0  P4: 0
+Water Tank HOT
+Sender Battery OK
+Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
+Frame: 23,b3,01,00,00,00,00,00,00,01,0d,0f,18,1d,12,04,03,06,01,00,00,00,00,00,00,00,00,00,00,00,0b,0e,16,1d,0f,03,04,06,01,00,00,00,00,00,len=44 RSSI=-74 LQI=6
+Sent request: Saved In Total
+Frame: 23,b3,22,00,00,00,00,01,00,00,00,02,00,00,00,00,00,00,11,b3,fe,ff,a0,a0,ce,a4,1c,1c,00,00,00,00,00,00,00,00,00,len=37 RSSI=-66 LQI=5
+Heating: 0  P1: -85231  Import: -218  P2: 1842340  P3: 0  P4: 0
+Water Tank HOT
+Sender Battery OK
+Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
+Frame: 23,b3,01,00,00,00,00,00,00,00,00,00,00,00,03,0f,0f,1b,1d,0c,05,05,04,01,00,00,00,00,00,00,00,00,00,00,04,0e,11,1c,1c,09,05,06,03,00,len=44 RSSI=-73 LQI=3
+Sent request: Saved Today
+Frame: 23,b3,22,00,00,00,00,01,00,00,00,02,00,00,00,00,00,00,05,8f,fe,ff,a0,a0,ca,54,0d,00,00,00,00,00,00,00,00,00,00,len=37 RSSI=-62 LQI=2
+Heating: 0  P1: -94459  Import: -242  P2: 3412  P3: 0  P4: 0
+Water Tank HOT
+Sender Battery OK
+Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
+Frame: 23,b3,01,00,1b,06,02,07,01,01,00,00,00,00,00,00,00,00,00,00,04,0d,12,1d,1c,08,02,08,03,02,00,00,00,00,00,00,00,00,00,00,06,0d,14,1f,len=44 RSSI=-73 LQI=3
+Sent request: Saved Yesterday
+Frame: 23,b3,22,00,00,00,00,00,00,00,00,02,00,00,00,00,00,00,c0,7d,fe,ff,a0,a0,cb,30,0c,00,00,00,00,00,00,00,00,00,00,len=37 RSSI=-68 LQI=4
+Heating: 0  P1: -98880  Import: -253  P2: 3120  P3: 0  P4: 0
+Heating by Solar = 0
+Sender Battery OK
+Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
+Frame: 23,b3,01,00,00,02,0e,12,1d,1f,0d,03,06,06,02,00,00,00,00,00,00,00,00,00,00,00,0c,0e,1a,1e,10,03,05,06,02,00,00,00,00,00,00,00,00,00,len=44 RSSI=-73 LQI=3
+Sent request: Saved Last 7 Days
+Frame: 23,b3,22,00,00,00,00,00,00,00,00,02,00,00,00,00,00,00,d1,89,fe,ff,a0,a0,cc,59,3e,00,00,00,00,00,00,00,00,00,00,len=37 RSSI=-67 LQI=2
+Heating: 0  P1: -95791  Import: -245  P2: 15961  P3: 0  P4: 0
+Heating by Solar = 0
+Sender Battery OK
+Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
+Frame: 23,b3,01,00,00,00,00,00,00,00,00,08,0c,14,1e,1b,08,03,09,02,01,00,00,00,00,00,00,00,00,00,00,05,0d,13,1e,18,08,04,0a,02,01,00,00,00,len=44 RSSI=-73 LQI=4
+Sent request: Saved Last 28 Days
+Frame: 23,b3,22,00,00,00,00,00,00,00,00,02,00,00,00,00,00,00,e4,3f,fe,ff,a0,a0,cd,2d,ea,00,00,00,00,00,00,00,00,00,00,len=37 RSSI=-67 LQI=4
+Heating: 0  P1: -114716  Import: -294  P2: 59949  P3: 0  P4: 0
+Heating by Solar = 0
+Sender Battery OK
+Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
