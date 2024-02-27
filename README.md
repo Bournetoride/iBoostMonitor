@@ -1,10 +1,11 @@
 Currently in development. 
 
 Tasks:
-- Recieve/transmit packets and extract iBoost information - Nearly Done...
-- Feed data to existing MQTT queue on the Raspberry Pi
-- Raspberry Pi - Write information to website (and possible InfluxDb)
-- Use a different board/add a display
+- Recieve/transmit packets and extract iBoost information - Done
+- Investigate the use of an interrupt to indicate a valid packet has be received.
+- Feed data to existing MQTT queue on the Raspberry Pi.
+- Raspberry Pi - Write information to website (and possible InfluxDb).
+- Use Lilygo TTGO (ESP32-S3 with a display)/add a display.
 
 # iBoost Monitor
 
@@ -13,7 +14,8 @@ Tasks:
 This project is based on the original by [JMSwanson / ESP-Home-iBoost](https://github.com/JNSwanson/ESP-Home-iBoost) which integrates with ESPHome which I currently do not use.
 
 This project uses an ESP32 and a [CC1101 TI radio module](https://www.ti.com/lit/ds/symlink/cc1100.pdf).  It was written using 
-VSCode and the PlatformIO plug-in. I used the same radio library as JMSwanson as it works.
+VSCode and the PlatformIO plug-in. Using the PubSubClient library for MQTT connectivity and I used the same radio library as 
+JMSwanson as it works. 
 
 Currently using an ESP32 Wroom 32 and a CC1101 Module purchased from eBay.
 

@@ -1,10 +1,14 @@
 #include <Arduino.h>
 #include <SPI.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+#include "config.h"
 #include "CC1101_RFx.h"
 
 #define SS_PIN 5
 #define MISO_PIN 19
-#define GDO0_PIN 2
+//#define GDO0_PIN 2      // Not used in this program
 
 // SCK_PIN = 18; MISO_PIN = 19; MOSI_PIN = 23; SS_PIN = 5; GDO0 = 2;
 CC1101 radio(SS_PIN,  MISO_PIN);   // SS (CSN), MISO
@@ -18,7 +22,7 @@ enum {
     SAVED_TOTAL = 0xCE
 };
 
-long today, yesterday, last7, last28, total;
+double today, yesterday, last7, last28, total;
   
 uint32_t pingTimer;         // used for the periodic pings see below
 uint32_t ledTimer;          // used for LED blinking when we receive a packet
@@ -30,9 +34,13 @@ uint8_t boostTime;
 uint8_t address[2];         // this is the address of the sender
 uint8_t addressLQI, rxLQI;  // signal strength test 
 bool addressValid;
-byte packet[255];
+byte packet[65];            // The CC1101 library sets the biggest packet at 61
+String ipAddress = "0:0:0:0";
+WiFiClient wifiClient;
+PubSubClient client(wifiClient);
 
-	
+void reconnect(void);
+
 void setup()  {
     addressLQI = 255; // set received LQI to lowest value
     addressValid = false;
@@ -42,7 +50,19 @@ void setup()  {
     Serial.begin(115200);
     Serial.println();
     Serial.println("SPI OK");
-    
+
+    WiFi.begin(SSID, WIFI_PASSWORD);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("");
+    Serial.println("Connecting to Wi-Fi...");
+    ipAddress = "IP:" + WiFi.localIP().toString();
+    Serial.println(ipAddress);
+
+    client.setServer(MQTT_SERVER, MQTT_PORT);
+
     radio.reset();
     radio.begin(868.350e6); // Freq, do not forget the "e6"
     radio.setMaxPktSize(61);
@@ -90,21 +110,36 @@ void setup()  {
     Serial.println("Radio OK");
     radio.setRXstate();             // Set the current state to RX : listening for RF packets
     
-    // LED setup - so we can use the module without serial terminal
-    pinMode(LED_BUILTIN, OUTPUT);
+    /* LED setup - so we can use the module without serial terminal,
+       set low to start so it's off and flashes when it receives a packet */
+    pinMode(LED_BUILTIN, OUTPUT);   
+    digitalWrite(LED_BUILTIN, LOW);
 
     Serial.println("Setup Finished");
-  }
+}
 
 
 void loop(void) {
-    // Turn on the LED for 200ms without blocking the loop.
-    digitalWrite(LED_BUILTIN, millis() - ledTimer > 200);
+    // Ensure we're connected to the MQTT server
+    if (!client.connected()) {
+        reconnect();
+    }
+
+    // MQTT - We're not interested in receiving anything, only publishing so no callback required.
+    // client.loop(); 
+
+    /* Logic to turn on the LED for 200ms without blocking the loop, not using 
+        delay() which would block the loop - move to RTOS task?
+    */
+    if (millis() - ledTimer > 200)
+        digitalWrite(LED_BUILTIN, LOW);
+    else
+        digitalWrite(LED_BUILTIN, HIGH);
 
     // Receive part. if GDO0 is connected with D1 you can use it to detect incoming packets
     //if (digitalRead(D1)) {
     byte pkt_size = radio.getPacket(packet);
-    if (pkt_size > 0 && radio.crcok()) { // We have a valid packet with some data
+    if (pkt_size > 0 && radio.crcok()) {        // We have a valid packet with some data
         short heating;
         long p1, p2;
         char pbuf[32];
@@ -114,9 +149,10 @@ void loop(void) {
         Serial.print("Frame: ");
         rxTimer = millis();
         rxLQI = radio.getLQI();
+        // Print hex values of packet
         for (int i = 0; i < pkt_size; i++) {
             sprintf(pbuf, "%02x", packet[i]);
-            Serial.print(pbuf); //packet[i], HEX);
+            Serial.print(pbuf); 
             Serial.print(",");
         }
 
@@ -157,22 +193,18 @@ void loop(void) {
                 cylinderHot = false;
 
             boostTime=packet[5]; // boost time remaining (minutes)
-            Serial.print("Heating=");
+            Serial.print("Heating: ");
             Serial.print(heating );
-            Serial.print(",P1=");
+            Serial.print("  P1: ");
             Serial.print(p1 );
-            Serial.print(",Import=");
+            Serial.print("  Import: ");
             Serial.print(p1 / 390 );        // was 360
-            Serial.print(",P2=");
+            Serial.print("  P2: ");
             Serial.print(p2 );
-            Serial.print(",P3=");
+            Serial.print("  P3: ");
             Serial.print((* (signed long*) &packet[29]) );
-            Serial.print(",P4=");
+            Serial.print("  P4: ");
             Serial.println((* (signed long*) &packet[30]) );
-            
-            // convert p2 to kWh
-            // if (p2 > 0)
-            //     p2 = p2/1000;
 
             switch (packet[24]) {
                 case   SAVED_TODAY:
@@ -193,35 +225,35 @@ void loop(void) {
             }
 
             if (cylinderHot)
-                Serial.println("Water Tank HOT");
+                Serial.println("Water Tank HOT");       // Hot water tank is hot!
             else if (boostTime > 0)
                 Serial.println("Manual Boost ON");
             else if (waterHeating) {
-                Serial.print("Heating by Solar=");
+                Serial.print("Heating by Solar = ");    // How many watts of solar we're using to heat the water
                 Serial.println(heating);
             }
             else
-                Serial.println("Water Heating OFF");
+                Serial.println("Water Heating OFF");    
 
             if (packet[12] == 0x01)
                 Serial.println("Warning: Sender Battery LOW");
             else
                 Serial.println("Sender Battery OK");
 
-            Serial.print("Today:");
+            Serial.print("Today: ");
             Serial.print(today);
-            Serial.print(" Wh   Yesterday:");
+            Serial.print(" Wh   Yesterday: ");
             Serial.print(yesterday);
-            Serial.print(" Wh   Last 7 Days:");
+            Serial.print(" Wh   Last 7 Days: ");
             Serial.print(last7);
-            Serial.print(" Wh   Last 28 Days:");
+            Serial.print(" Wh   Last 28 Days: ");
             Serial.print(last28);
-            Serial.print(" Wh   Total:");
+            Serial.print(" Wh   Total: ");
             Serial.print(total);
-            Serial.print(" Wh   Boost Time:");
+            Serial.print(" Wh   Boost Time: ");
             Serial.println(boostTime);
         }
-        // Update LED timer
+        // Update LED timer to flash LED (packet received)
         ledTimer = millis();
     }
 
@@ -247,6 +279,7 @@ void loop(void) {
                 txBuf[15] = 0xa0;
                 txBuf[16] = 0xc8;
                 
+            // Not interested in boost in this program
             //   if(boostRequest){
             //     txBuf[4] = 0x18; // set boost time
             //     txBuf[18] = boostTime;
@@ -284,9 +317,50 @@ void loop(void) {
 
                 request++;
 
-                // Update timer for pinging main unit for information
+                // Update timer for pinging main unit for information, currently every 10 seconds
                 pingTimer = millis();
             }
         }
     }
+}
+
+/**
+ * @brief Attempt to reconnect with the MQTT broker
+ * 
+ */
+void reconnect(void) {
+  // Loop until we're reconnected
+  String clientId = "ESP32S3Client-";
+  clientId += String(random(0xffff), HEX);
+  boolean result = false;
+
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
+      Serial.println("connected");
+      client.setSocketTimeout(120);
+
+    // Currently not interested in subscribing to anything
+    //   // subscribe to topics we're interested in
+    //   if (client.subscribe("solar/pvnow", 0)) {
+    //     Serial.println("Subscribed to solar/pvnow");
+    //   };
+    //   if (client.subscribe("solar/pvtotal", 0)) {
+    //     Serial.println("Subscribed to solar/pvtotal");
+    //   }
+    //   if (client.subscribe("weather/description", 0)) {
+    //     Serial.println("Subscribed to weather/description");
+    //   }
+    //   if (client.subscribe("weather/outsidetemp", 0)) {
+    //     Serial.println("Subscribed to weather/outsidetemp");
+    //   }
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
 }
