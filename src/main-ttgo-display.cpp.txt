@@ -24,141 +24,130 @@
  * SOFTWARE.
  */
 
+/*
+#define PIN_MISO  27  // GPIO27
+#define PIN_MOSI  26  // GPIO26
+#define PIN_SCK   25  // GIPO25
+#define PIN_CS    33  // GPIO33
+or possibly
+#define USE_HSPI_PORT
+#define TFT_MISO  27  
+#define TFT_MOSI  26  
+#define TFT_SCLK   25 
+#define TFT_CS    2
+
+need to define HSPI: https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/14
+SPIClass SPI1(HSPI);
+
+#define MY_CS     15
+#define MY_SCLK   25
+#define MY_MISO 26
+#define MY_MOSI 27
+void setup()
+    SPI1.begin(MY_SCLK, MY_MISO, MY_MOSI, MY_CS);
+
+*/
 
 #include <Arduino.h>
-#include <ELECHOUSE_CC1101_SRC_DRV.h>
-#include <TFT_eSPI.h> 
+#include <SPI.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
 
-// CaptureLog setup
-#define CLOG_ENABLE false              // this must be defined before cLog.h is included 
-#include "cLog.h"
+#include "config.h"
+#include "CC1101_RFx.h"
 
-byte buffer[255] = {0};
-uint8_t address[2];         // this is the address of the sender
-uint8_t request;            // message type
-uint8_t addressLQI, rxLQI;  // signal strength test 
-bool validAddress;
-int gdo0;
+#define SS_PIN 5
+#define MISO_PIN 19
+//#define GDO0_PIN 2      // Not used in this program
+#define MSG_BUFFER_SIZE	(50)
 
-void setAddress(byte a, byte b);
+// ESP32 Wroom 32: SCK_PIN = 18; MISO_PIN = 19; MOSI_PIN = 23; SS_PIN = 5; GDO0 = 2;
+// Lilygo TTGO: SCK_PIN = 25; MISO_PIN = 27; MOSI_PIN = 26; SS_PIN = 33;
+CC1101 radio(SS_PIN,  MISO_PIN);   // SS (CSN), MISO
 
 // codes for the various requests and responses
-enum {  
-  SAVED_TODAY = 0xCA,
-  SAVED_YESTERDAY = 0xCB,
-  SAVED_LAST_7 = 0xCC,
-  SAVED_LAST_28 = 0xCD,
-  SAVED_TOTAL = 0xCE
+enum { 
+    SAVED_TODAY = 0xCA,
+    SAVED_YESTERDAY = 0xCB,
+    SAVED_LAST_7 = 0xCC,
+    SAVED_LAST_28 = 0xCD,
+    SAVED_TOTAL = 0xCE
 };
 
+long today, yesterday, last7, last28, total = 0;
+  
+uint32_t pingTimer;         // used for the periodic pings see below
+uint32_t ledTimer;          // used for LED blinking when we receive a packet
+uint32_t rxTimer;  
+uint8_t txBuf[32];
+uint8_t request;
+bool boostRequest;
+uint8_t boostTime;
+uint8_t address[2];         // this is the address of the sender
+uint8_t addressLQI, rxLQI;  // signal strength test 
+bool addressValid;
+byte packet[65];            // The CC1101 library sets the biggest packet at 61
+WiFiClient wifiClient;
+PubSubClient client(wifiClient);
+char msg[MSG_BUFFER_SIZE];
 
-#if CLOG_ENABLE
-const uint16_t maxEntries = 30;
-const uint16_t maxEntryChars = 120;
-CLOG_NEW myLog1(maxEntries, maxEntryChars, NO_TRIGGER, NO_WRAP);
-#endif
+long lastReconnectAttempt = 0;  // Used for non blocking MQTT reconnect
+String clientId = "ESP32Client-";
 
-TFT_eSPI tft = TFT_eSPI();
-TFT_eSprite sprite = TFT_eSprite(&tft);
-TFT_eSprite satcom = TFT_eSprite(&tft);
+
+/* Function prototypes */
+void connectToMQTTBroker(void);
+bool reconnectToMQTTBroker(void);
+void radioSetup();
+void receivePacket(void);
+void transmitPacket(void);
+
 
 /**
- * @brief Set up the application
+ * @brief Set up everything. SPI, WiFi, MQTT, and CC1101
  * 
  */
 void setup() {
+    addressLQI = 255; // set received LQI to lowest value
+    addressValid = false;
+
+    SPI.begin();
+
     Serial.begin(115200);
-    Serial.println("Setting up radio...");
+    Serial.println();
+    Serial.println("SPI OK");
 
-    addressLQI = 255;      // Set received LQI to lowest value
-    validAddress = false;
-    address[0] = 0;
-    address[1] = 0;
-    gdo0 = 2;       // GDO0 on GPIO pin 2
-
-    tft.init();
-    tft.setRotation(3);
-    tft.setSwapBytes(true);
-    
-    sprite.createSprite(240, 135);
-    sprite.setSwapBytes(true);
-
-    sprite.fillSprite(TFT_BLACK);
-    sprite.setTextColor(TFT_WHITE);
-    sprite.setTextFont(4);
-    sprite.drawString("Setting up CC1101...", 15, 50);
-    sprite.pushSprite(0, 0);
-
-    // Check the CC1101 Spi connection.  Library expects the following connections:
-    // SCK_PIN = 18; MISO_PIN = 19; MOSI_PIN = 23; SS_PIN = 5; GDO0 = 2;
-    if (ELECHOUSE_cc1101.getCC1101()) {      
-        Serial.println("Connection OK");
-        sprite.fillSprite(TFT_BLACK);
-        sprite.setTextColor(TFT_WHITE);
-        sprite.setTextFont(4);
-        sprite.drawString("CC1101 connection ok", 15, 50);
-        sprite.pushSprite(0, 0);
-    } else {
-        Serial.println("Connection Error");
-        sprite.fillSprite(TFT_BLACK);
-        sprite.setTextColor(TFT_WHITE);
-        sprite.setTextFont(4);
-        sprite.drawString("CC1101 connection error", 15, 50);
-        sprite.pushSprite(0, 0);
+    Serial.print("Connecting to Wi-Fi...");
+    WiFi.begin(SSID, WIFI_PASSWORD);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
     }
- 
-    // CC1101 Settings
-    ELECHOUSE_cc1101.Init();                // Initialise CC1101
-    ELECHOUSE_cc1101.setGDO0(gdo0);         // set lib internal gdo pin (gdo0)
-    ELECHOUSE_cc1101.setPacketLength(61);
-    ELECHOUSE_cc1101.setMHZ(868.3);
+    Serial.println("");
+    Serial.print("IP Address:"); 
+    Serial.println(WiFi.localIP().toString());
 
-    // If we're setting the frequency above why are we then setting via the registers?
-    // ELECHOUSE_cc1101.SpiWriteReg(CC1101_FREQ2, 0x21); // 868.300MHz  (868300000 <<16)/26000000
-    // ELECHOUSE_cc1101.SpiWriteReg(CC1101_FREQ1, 0x65);
-    // ELECHOUSE_cc1101.SpiWriteReg(CC1101_FREQ0, 0x6a);
+    /* MQTT setup - this will be used to send data to the MQTT broker on a Raspberry 
+       Pi so that it can be saved to a database (InfluxDb) for viewing in Grafana and
+       for another ESP32 with a display to show the information along with all the 
+       solar information it currently displays from the solar invertor.  Aditionally, 
+       the state of the water (HOT or not) will be sent to an external web page so 
+       we can view it if we're not at home to see if we need to put the hot water on
+       or not.
+    */
+    clientId += String(random(0xffff), HEX);
+    client.setServer(MQTT_SERVER, MQTT_PORT);
+    connectToMQTTBroker();
 
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FSCTRL1, 0x08);     // fif=203.125kHz
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FSCTRL0, 0x00);     // No offset
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG4, 0x5B);     // CHANBW_E = 1 CHANBW_M=1 BWchannel =325kHz   DRATE_E=11
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG3, 0xF8);     // DRATE_M=248 RDATA=99.975kBaud
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG2, 0x03);     // Disable digital DC blocking filter before demodulator enabled. MOD_FORMAT=000 (2-FSK) Manchester Coding disabled Combined sync-word qualifier mode = 30/32 sync word bits detected
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG1, 0x22);     // Forward error correction disabled 4 preamble bytes transmitted CHANSPC_E=2
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG0, 0xF8);     // CHANSPC_M=248 200kHz channel spacing
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_CHANNR, 0x00);      // The 8-bit unsigned channel number, which is multiplied by the channel spacing setting and added to the base frequency.
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_DEVIATN, 0x47);     // DEVIATION_E=4 DEVIATION_M=7 ±47.607 kHz deviation
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FREND1, 0xB6);      // Adjusts RX RF device
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FREND0, 0x10);      // Adjusts TX RF device
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_MCSM0, 0x18);       // Calibrates when going from IDLE to RX or TX (or FSTXON) PO_TIMEOUT 149-155uS Pin control disabled XOSC off in sleep mode
-    //ELECHOUSE_cc1101.SpiWriteReg(CC1101_MCSM1, 0x00);     // Channel clear = always Return to idle after packet reception Return to idle after transmission
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FOCCFG, 0x1D);      // The frequency compensation loop gain to be used before a sync word is detected = 4K The frequency compensation loop gain to be used after a sync word is Detected = K/2 The saturation point for the frequency offset compensation algorithm = ±BWchannel /8
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_BSCFG, 0x1C);       // The clock recovery feedback loop integral gain to be used before a sync word is detected = KI The clock recovery feedback loop proportional gain to be used before a sync word is detected = 2KP The clock recovery feedback loop integral gain to be used after a sync word is Detected = KI/2 The clock recovery feedback loop proportional gain to be used after a sync word is detected = KP The saturation point for the data rate offset compensation algorithm = ±0 (No data rate offset compensation performed)
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL2, 0xC7);    // The 3 highest DVGA gain settings can not be used. Maximum allowable LNA + LNA 2 gain relative to the maximum possible gain. Target value for the averaged amplitude from the digital channel filter = 42dB
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL1, 0x00);    // LNA 2 gain is decreased to minimum before decreasing LNA gain Relative carrier sense threshold disabled Sets the absolute RSSI threshold for asserting carrier sense to MAGN_TARGET
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL0, 0xB2);    // Sets the level of hysteresis on the magnitude deviation (internal AGC signal that determine gain changes) to Medium hysteresis, medium asymmetric dead zone, medium gain Sets the number of channel filter samples from a gain adjustment has been made until the AGC algorithm starts accumulating new samples to 32 samples AGC gain never frozen
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FSCAL3, 0xEA);      // Detailed calibration
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FSCAL2, 0x2A);
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FSCAL1, 0x00);
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FSCAL0, 0x1F);
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FSTEST, 0x59);      // Test register
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_TEST2, 0x81);       // Values to be used from SmartRF software
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_TEST1, 0x35);
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_TEST0, 0x09);
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_IOCFG2, 0x0B);      // Active High Serial Clock
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_IOCFG0, 0x46);      // Analog temperature sensor disabled Active High Asserts when sync word has been sent / received, and de-asserts at the end of the packet
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_PKTCTRL1, 0x04);    // Sync word is always accepted Automatic flush of RX FIFO when CRC is not OK disabled Two status bytes will be appended to the payload of the packet. The status bytes contain RSSI and LQI values, as well as CRC OK. No address checkof received packages.
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_PKTCTRL0, 0x05);    // Data whitening off Normal mode, use FIFOs for RX and TX CRC calculation in TX and CRC check in RX enabled Variable packet length mode. Packet length configured by the first byte after sync word
-    ELECHOUSE_cc1101.SpiWriteReg(CC1101_ADDR, 0x00);        // Address used for packet filtration. Optional broadcast addresses are 0 (0x00) and 255 (0xFF).
+    // Set up the radio
+    radioSetup();
+    
+    /* LED setup - so we can use the module without serial terminal,
+       set low to start so it's off and flashes when it receives a packet */
+    pinMode(LED_BUILTIN, OUTPUT);   
+    digitalWrite(LED_BUILTIN, LOW);
 
-    static uint8_t paTable[] = {0xC6, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F};
-    ELECHOUSE_cc1101.SpiReadBurstReg(CC1101_PATABLE, paTable, sizeof(paTable));
-
-    ELECHOUSE_cc1101.SetRx();
-
-    Serial.println("Radio set up and in receive mode...");
-
-    // might want to blink a light on the ESP or update a display now!
-    request = 0xca;     // set to saved today as a start
+    Serial.println("Setup Finished");
 }
 
 /**
@@ -166,195 +155,336 @@ void setup() {
  * 
  */
 void loop(void) {
-    // Check whether something has been received.
-    // When something is received, give some time to receive the message in full (time in millis).
-    if (ELECHOUSE_cc1101.CheckRxFifo(100)) {
-        //CRC Check. If "setCrc(false)" crc returns always OK!
-        if (ELECHOUSE_cc1101.CheckCRC()) { 
-            //Rssi Level in dBm
-            Serial.print("Rssi: ");
-            Serial.println(ELECHOUSE_cc1101.getRssi());
-
-            //Link Quality Indicator
-            rxLQI = ELECHOUSE_cc1101.getLqi();
-            Serial.print("LQI: ");
-            Serial.println(rxLQI);
-        
-            // Get received Data and calculate length - should not be any longer than
-            // the packet length we set earlier, need to check...
-            int len = ELECHOUSE_cc1101.ReceiveData(buffer);
-            buffer[len] = '\0';         // teminate buffer
-
-            Serial.print("Packet received, length was: ");
-            Serial.println(len);
-
-            //Print received in char format.
-            Serial.println((char *) buffer);
-            Serial.println();
-
-            // Now print received in bytes format.
-            for (int i = 0; i < len; i++) {
-                Serial.print(buffer[i]);
-                Serial.print(",");
-            }
-            Serial.println();
-
-            if (buffer[2] == 0x21 && len == 29) {           // buddy request
-                Serial.println("Buddy request received");
-                if (rxLQI < addressLQI)
-                    setAddress(buffer[0], buffer[1]);
-
-            } else if (buffer[2] == 0x01 && len == 44) {    // sender packet
-                Serial.println("Sender packet received");
-                if (rxLQI < addressLQI)
-                    setAddress(buffer[0], buffer[1]);
-            }           
-
-            if ( buffer[2] == 0x22) {                       // main unit packet
-                bool waterHeating, cylinderHot;
-                short heating;
-                long p1, p2;
-                byte boostTime;
-                long today, yesterday, last7, last28, total;
-
-                Serial.println("Main unit packet received:");
-
-                heating = (* ( short *) &buffer[16]);
-                p1 = (* ( long*) &buffer[18]);
-                p2 = (* ( long*) &buffer[25]);  // this depends on the request
-                
-                Serial.print("  P1=");
-                Serial.print(p1);
-                Serial.print(", Import=");
-                Serial.print(p1 / 360);
-                Serial.print(", P2=");
-                Serial.print(p2);
-
-                if (buffer[6]) {
-                    waterHeating = false;
-                    Serial.print(", Water Heating OFF");
-                }
-                else {
-                    waterHeating = true;
-                    Serial.print(", Heating by Solar=");
-                    Serial.print(heating);
-                }
-
-                if (buffer[7]) {
-                    cylinderHot = true;
-                    Serial.print(", Water Tank HOT");
-                }
-                else
-                    cylinderHot = false;
-            
-                boostTime=buffer[5]; // boost time remaining (minutes)
-
-                if (buffer[12] == 0x01) {
-                    Serial.print(", Warn=Sender Battery LOW");
-                }
-
-                switch (buffer[24]) {
-                case SAVED_TODAY:
-                    today = p2;
-                    break;
-
-                case SAVED_YESTERDAY:
-                    yesterday = p2;
-                    break;
-
-                case SAVED_LAST_7:
-                    last7 = p2;
-                    break;
-
-                case SAVED_LAST_28:
-                    last28 = p2;
-                    break;
-
-                case SAVED_TOTAL:
-                    total = p2;
-                    break;
-                }
-
-                Serial.print(", Today=");
-                Serial.print(today);
-                Serial.print(", Yesterday=");
-                Serial.print(yesterday);
-                Serial.print(", Last 7 Days=");
-                Serial.print(last7);
-                Serial.print(", Last 28 Days=");
-                Serial.print(last28);
-                Serial.print(", Total=");
-                Serial.print(total);
-                Serial.print(", Boost Time=");
-                Serial.println(boostTime);
+    // Ensure we're connected to the MQTT server
+    if (!client.connected()) {
+        long now = millis();
+        if (now - lastReconnectAttempt > 5000) {
+            lastReconnectAttempt = now;
+            // Attempt to reconnect
+            if (reconnectToMQTTBroker()) {
+                lastReconnectAttempt = 0;
             }
         }
+    } else {
+        // MQTT - We're not interested in receiving anything, only publishing.
+        client.loop();
     }
 
-    bool transmit = false;
-    if (transmit) {
-        // Need to periodically send a request to the main unit for data - every 10/20/30/60 seconds?
-        // Will need to send a request for each item stored in the main unit - see ENUM above for codes
-        uint8_t txBuf[32];
 
-        // set to saved today if we've gone through all the request codes or 
-        // have an incorrect code - see ENUM above.
-        if ( (request < 0xca) || (request > 0xce) )
-            request = 0xca;
+    /* Logic to turn on the LED for 200ms without blocking the loop - move to RTOS task? */
+    if (millis() - ledTimer > 200)
+        digitalWrite(LED_BUILTIN, LOW);
+    else
+        digitalWrite(LED_BUILTIN, HIGH);
 
-        // payload to tx
-        txBuf[1] = address[0]; 
-        txBuf[2] = address[1];		  
-        txBuf[3] = 0x21;
-        txBuf[4] = 0x8;
-        txBuf[5] = 0x92;
-        txBuf[6] = 0x7;
-        txBuf[9] = 0x24;
-        txBuf[11] = 0xa0;
-        txBuf[12] = 0xa0;
-        txBuf[13] = request; // this is the request
-        txBuf[15] = 0xa0;
-        txBuf[16] = 0xa0;
-        txBuf[17] = 0xc8;
+    receivePacket();
 
-        //ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-        //ELECHOUSE_cc1101.SpiWriteReg(CC1101_TXFIFO, 0x1d); // this is the packet length
-
-        //ELECHOUSE_cc1101.SpiWriteBurstReg(CC1101_TXFIFO, txBuf + 1, 29); // write the data to the TX FIFO
-        //ELECHOUSE_cc1101.SpiStrobe(CC1101_STX);     // start send
-
-        ELECHOUSE_cc1101.SendData(txBuf + 1, 29);
-
-        delay(5);
-        ELECHOUSE_cc1101.SpiStrobe(CC1101_SWOR);
-        delay(5);
-
-        // flush receive buffer and put CC1101 back to rx mode
-        ELECHOUSE_cc1101.SpiStrobe(CC1101_SFRX);
-        ELECHOUSE_cc1101.SetRx();
-
-        Serial.print("Request (");
-        Serial.print(request);
-        Serial.println(") sent");
-        request++;    // next request in ENUM
-        //update request timer...
+    if(addressValid) {
+        if ((millis() - pingTimer > 10000) || boostRequest) { // ping every 10sec
+            if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) {
+                transmitPacket();
+            }
+        }
     }
 }
 
 
 /**
- * @brief Set iBoost sender address
+ * @brief Set up the CC1101 for receiving iBoost packets
  * 
- * @param a First byte of address
- * @param b Second byte of address
  */
-void setAddress(byte a, byte b) {
-    char pbuf[32];
+void radioSetup() {
+    radio.reset();
+    radio.begin(868.350e6); // Freq, do not forget the "e6"
+    radio.setMaxPktSize(61);
+    radio.writeRegister(CC1101_FREQ2, 0x21); 
+    radio.writeRegister(CC1101_FREQ1, 0x65);
+    radio.writeRegister(CC1101_FREQ0, 0xe8);
+    radio.writeRegister(CC1101_FSCTRL1, 0x08); // fif=203.125kHz
+    radio.writeRegister(CC1101_FSCTRL0, 0x00); // No offset
+    radio.writeRegister(CC1101_MDMCFG4, 0x5B); // CHANBW_E = 1 CHANBW_M=1 BWchannel =325kHz   DRATE_E=11
+    radio.writeRegister(CC1101_MDMCFG3, 0xF8); // DRATE_M=248 RDATA=99.975kBaud
+    radio.writeRegister(CC1101_MDMCFG2, 0x03); // Disable digital DC blocking filter before demodulator enabled. MOD_FORMAT=000 (2-FSK) Manchester Coding disabled Combined sync-word qualifier mode = 30/32 sync word bits detected
+    radio.writeRegister(CC1101_MDMCFG1, 0x22); // Forward error correction disabled 4 preamble bytes transmitted CHANSPC_E=2
+    radio.writeRegister(CC1101_MDMCFG0, 0xF8); // CHANSPC_M=248 200kHz channel spacing
+    radio.writeRegister(CC1101_CHANNR, 0x00); // The 8-bit unsigned channel number, which is multiplied by the channel spacing setting and added to the base frequency.
+    radio.writeRegister(CC1101_DEVIATN, 0x47); // DEVIATION_E=4 DEVIATION_M=7 ±47.607 kHz deviation
+    radio.writeRegister(CC1101_FREND1, 0xB6); // Adjusts RX RF device
+    radio.writeRegister(CC1101_FREND0, 0x10); // Adjusts TX RF device
+    radio.writeRegister(CC1101_MCSM0, 0x18); // Calibrates whngoing from IDLE to RX or TX (or FSTXON) PO_TIMEOUT 149-155uS Pin control disabled XOSC off in sleep mode
+    //radio.writeRegister(CC1101_MCSM1, 0x00); // Channel clear = always Return to idle after packet reception Return to idle after transmission
+    radio.writeRegister(CC1101_FOCCFG, 0x1D); // The frequency compensation loop gain to be used before a sync word is detected = 4K The frequency compensation loop gain to be used after a sync word is Detected = K/2 The saturation point for the frequency offset compensation algorithm = ±BWchannel /8
+    radio.writeRegister(CC1101_BSCFG, 0x1C); // The clock recovery feedback loop integral gain to be used before a sync word is detected = KI The clock recovery feedback loop proportional gain to be used before a sync word is detected = 2KP The clock recovery feedback loop integral gain to be used after a sync word is Detected = KI/2 The clock recovery feedback loop proportional gain to be used after a sync word is detected = KP The saturation point for the data rate offset compensation algorithm = ±0 (No data rate offset compensation performed)
+    radio.writeRegister(CC1101_AGCCTRL2, 0xC7); // The 3 highest DVGA gain settings can not be used. Maximum allowable LNA + LNA 2 gain relative to the maximum possible gain. Target value for the averaged amplitude from the digital channel filter = 42dB
+    radio.writeRegister(CC1101_AGCCTRL1, 0x00); // LNA 2 gain is decreased to minimum before decreasing LNA gain Relative carrier sense threshold disabled Sets the absolute RSSI threshold for asserting carrier sense to MAGN_TARGET
+    radio.writeRegister(CC1101_AGCCTRL0, 0xB2); // Sets the level of hysteresis on the magnitude deviation (internal AGC signal that determine gain changes) to Medium hysteresis, medium asymmetric dead zone, medium gain Sets the number of channel filter samples from a gain adjustment has been made until the AGC algorithm starts accumulating new samples to 32 samples AGC gain never frozen
+    radio.writeRegister(CC1101_FSCAL3, 0xEA); // Detailed calibration
+    radio.writeRegister(CC1101_FSCAL2, 0x2A); //
+    radio.writeRegister(CC1101_FSCAL1, 0x00); //
+    radio.writeRegister(CC1101_FSCAL0, 0x1F); //
+    radio.writeRegister(CC1101_FSTEST, 0x59); // Test register
+    radio.writeRegister(CC1101_TEST2, 0x81); // Values to be used from SmartRF software
+    radio.writeRegister(CC1101_TEST1, 0x35); //
+    radio.writeRegister(CC1101_TEST0, 0x09); //
+    radio.writeRegister(CC1101_IOCFG2, 0x0B); // Active High Serial Clock
+    radio.writeRegister(CC1101_IOCFG0, 0x46); // Analog temperature sensor disabled Active High Asserts when sync word has been sent / received, and de-asserts at the end of the packet
+    radio.writeRegister(CC1101_PKTCTRL1, 0x04); // Sync word is always accepted Automatic flush of RX FIFO when CRC is not OK disabled Two status bytes will be appended to the payload of the packet. The status bytes contain RSSI and LQI values, as well as CRC OK. No address checkof received packages.
+    radio.writeRegister(CC1101_PKTCTRL0, 0x05); // Data whitening off Normal mode, use FIFOs for RX and TX CRC calculation in TX and CRC check in RX enabled Variable packet length mode. Packet length configured by the first byte after sync word
+    radio.writeRegister(CC1101_ADDR, 0x00); // Address used for packet filtration. Optional broadcast addresses are 0 (0x00) and 255 (0xFF).
 
-    address[0] = buffer[0];     // save the address of the packet
-    address[1] = buffer[1];
-    Serial.print("Buddy address set to: ");
-    sprintf(pbuf, "%02x,%02x",address[0],address[1]);
-    Serial.println(pbuf);
-    validAddress = true;
+    static uint8_t paTable[] = {0xC6, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F};
+    radio.writeBurstRegister(CC1101_PATABLE, paTable, sizeof(paTable));
+
+    radio.strobe(CC1101_SIDLE); 
+    radio.strobe(CC1101_SPWD); 
+
+    radio.setRXstate();             // Set the current state to RX : listening for RF packets
+    Serial.println("CC1101 set up complete, set to Rx");
+}
+
+/**
+ * @brief Handle the receipt of a packet from the CC1101
+ * 
+ */
+void receivePacket(void) { 
+    // Receive part. if GDO0 is connected with D1 you can use it to detect incoming packets
+    //if (digitalRead(D1)) {
+    byte pkt_size = radio.getPacket(packet);
+    if (pkt_size > 0 && radio.crcok()) {        // We have a valid packet with some data
+        short heating;
+        long p1, p2;
+        char pbuf[32];
+        byte boostTime;
+        bool waterHeating,cylinderHot;
+
+        Serial.print("Frame: ");
+        rxTimer = millis();
+        rxLQI = radio.getLQI();
+        // Print hex values of packet
+        for (int i = 0; i < pkt_size; i++) {
+            sprintf(pbuf, "%02x", packet[i]);
+            Serial.print(pbuf); 
+            Serial.print(",");
+        }
+
+        Serial.print("len=");
+        Serial.print(pkt_size);
+        Serial.print(" RSSI="); // for field tests to check the signal strength
+        Serial.print(radio.getRSSIdbm());
+        Serial.print(" LQI="); // for field tests to check the signal quality
+        Serial.println(rxLQI);
+
+        //   buddy request                            sender packet
+        if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
+            if(rxLQI < addressLQI) { // is the signal stronger than the previous/none
+                addressLQI = rxLQI;
+                address[0] = packet[0]; // save the address of the packet	0x1c7b; //
+                address[1] = packet[1];
+                addressValid = true;
+                Serial.print("Updated the address to:");
+                sprintf(pbuf, "%02x,%02x",address[0],address[1]);
+                Serial.println(pbuf);
+            }		
+        }
+
+        // main unit (sending info to iBoost Buddy)
+        if (packet[2] == 0x22) {    
+            heating = (* ( short *) &packet[16]);
+            p1 = (* ( long*) &packet[18]);
+            p2 = (* ( long*) &packet[25]); // this depends on the request
+
+            if (packet[6])
+                waterHeating = false;
+            else
+                waterHeating = true;
+
+            if (packet[7])
+                cylinderHot = true;
+            else
+                cylinderHot = false;
+
+            boostTime=packet[5]; // boost time remaining (minutes)
+            Serial.print("Heating: ");
+            Serial.print(heating );
+            Serial.print("  P1: ");
+            Serial.print(p1 );
+            Serial.print("  Import: ");
+            Serial.print(p1 / 390 );        // was 360
+            Serial.print("  P2: ");
+            Serial.print(p2 );
+            Serial.print("  P3: ");
+            Serial.print((* (signed long*) &packet[29]) );
+            Serial.print("  P4: ");
+            Serial.println((* (signed long*) &packet[30]) );
+
+            switch (packet[24]) {
+                case   SAVED_TODAY:
+                    today = p2;
+                    break;
+                case   SAVED_YESTERDAY:
+                    yesterday = p2;
+                    break;
+                case   SAVED_LAST_7:
+                    last7 = p2;
+                    break;
+                case   SAVED_LAST_28:
+                    last28 = p2;
+                    break;
+                case   SAVED_TOTAL:
+                    total = p2;
+                    break;
+            }
+
+            if (cylinderHot)
+                Serial.println("Water Tank HOT");       // Hot water tank is hot!
+            else if (boostTime > 0)
+                Serial.println("Manual Boost ON");
+            else if (waterHeating) {
+                Serial.print("Heating by Solar = ");    // How many watts of solar we're using to heat the water
+                Serial.println(heating);
+            }
+            else
+                Serial.println("Water Heating OFF");    
+
+            if (packet[12] == 0x01)
+                Serial.println("Warning: Sender Battery LOW");
+            else
+                Serial.println("Sender Battery OK");
+
+            Serial.print("Today: ");
+            Serial.print(today);
+            Serial.print(" Wh   Yesterday: ");
+            Serial.print(yesterday);
+            Serial.print(" Wh   Last 7 Days: ");
+            Serial.print(last7);
+            Serial.print(" Wh   Last 28 Days: ");
+            Serial.print(last28);
+            Serial.print(" Wh   Total: ");
+            Serial.print(total);
+            Serial.print(" Wh   Boost Time: ");
+            Serial.println(boostTime);
+
+            snprintf (msg, MSG_BUFFER_SIZE, "Today: %ld Wh", today);
+            Serial.print("MQTT publish message: ");
+            Serial.println(msg);
+            //client.publish("iboost/hotWater", msg);
+            //client.publish("iboost/savedToday", msg);
+            //client.publish("solar/savedYesterday", msg);
+            //client.publish("solar/savedLast7", msg);
+            //client.publish("solar/savedLast28", msg);
+            //client.publish("solar/savedTotal", msg);
+        }
+        // Update LED timer to flash LED (packet received)
+        ledTimer = millis();
+    }
+}
+
+/**
+ * @brief Transmit a packet to the iBoost main unit to request information
+ * 
+ */
+void transmitPacket(void) {
+    memset(txBuf, 0, sizeof(txBuf));
+
+    if ((request < 0xca) || (request > 0xce)) 
+        request = 0xca;
+
+    txBuf[0] = address[0]; //payload
+    txBuf[1] = address[1];		  
+    txBuf[2] = 0x21;
+    txBuf[3] = 0x8;
+    txBuf[4] = 0x92;
+    txBuf[5] = 0x7;
+    txBuf[8] = 0x24;
+    txBuf[10] = 0xa0;
+    txBuf[11] = 0xa0;
+    txBuf[12] = request; // request information (on this topic) from the main unit
+    txBuf[14] = 0xa0;
+    txBuf[15] = 0xa0;
+    txBuf[16] = 0xc8;
+    
+// Not interested in boost in this program
+//   if(boostRequest){
+//     txBuf[4] = 0x18; // set boost time
+//     txBuf[18] = boostTime;
+//     boostRequest = false;
+//   }
+
+    radio.strobe(CC1101_SIDLE);
+    radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
+    radio.writeBurstRegister(CC1101_TXFIFO, txBuf, 29);   // write the data to the TX FIFO
+    radio.strobe(CC1101_STX);
+    delay(5);
+    radio.strobe(CC1101_SWOR);
+    delay(5);
+    radio.strobe(CC1101_SFRX);
+    radio.strobe(CC1101_SIDLE);
+    radio.strobe(CC1101_SRX);
+    Serial.print("Sent request: ");
+    switch (request) {
+        case   SAVED_TODAY:
+            Serial.println("Saved Today");
+            break;
+        case   SAVED_YESTERDAY:
+            Serial.println("Saved Yesterday");
+            break;
+        case   SAVED_LAST_7:
+            Serial.println("Saved Last 7 Days");
+            break;
+        case   SAVED_LAST_28:
+            Serial.println("Saved Last 28 Days");
+            break;
+        case   SAVED_TOTAL:
+            Serial.println("Saved In Total");
+            break;
+    }
+
+    request++;
+
+    // Update timer for pinging main unit for information, currently every 10 seconds
+    pingTimer = millis();
+}
+
+/**
+ * @brief Attempt to connect with the MQTT broker
+ * 
+ */
+void connectToMQTTBroker(void) {
+    // Loop until we're reconnected
+    boolean result = false;
+
+    while (!client.connected()) {
+        Serial.print("Attempting MQTT connection...");
+        // Attempt to connect
+        if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
+            Serial.println("connected");
+            client.setSocketTimeout(120);
+
+            client.publish("solar/water", "Connected", false);
+        } else {
+            Serial.print("failed, rc=");
+            Serial.print(client.state());
+            Serial.println(" trying again in 5 seconds");
+            // Wait 5 seconds before retrying
+            delay(5000);
+        }
+    }
+}
+
+/**
+ * @brief Attempt to reconnect with the MQTT broker, non blocking
+ * 
+ * @return bool True if reconnect was successful, false if not
+ */
+bool reconnectToMQTTBroker(void) {
+    bool connected = false;
+
+    Serial.print("Attempting to reconnect with MQTT server...");
+    if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
+        Serial.println("connected");
+        client.setSocketTimeout(120);
+        connected = true;
+    } 
+
+    return connected;
 }

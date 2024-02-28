@@ -1,18 +1,41 @@
 #include <Arduino.h>
-#include <SPI.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <SPI.h>
+
+#ifdef TTGO
+#include <TFT_eSPI.h> 
+#include "solar-panel.h"
+#endif
 
 #include "config.h"
 #include "CC1101_RFx.h"
 
-#define SS_PIN 5
-#define MISO_PIN 19
+
+// ESP32 Wroom 32: SCK_PIN = 18; MISO_PIN = 19; MOSI_PIN = 23; SS_PIN = 5; GDO0 = 2;
+#ifdef WROOM
+    #define SS_PIN 5
+    #define MISO_PIN 19
+
+    CC1101 radio(SS_PIN,  MISO_PIN);
+#endif
+
+// Lilygo TTGO: SCK_PIN = 25; MISO_PIN = 27; MOSI_PIN = 26; SS_PIN = 33;
+#ifdef TTGO
+    #define SS_PIN 33
+    #define MISO_PIN 27
+    #define MOSI_PIN 26
+    #define SCK_PIN 25
+    
+    SPIClass SPITTGO(HSPI);
+
+    CC1101 radio(SS_PIN,  MISO_PIN, SPITTGO);
+#endif
+
+
 //#define GDO0_PIN 2      // Not used in this program
 #define MSG_BUFFER_SIZE	(50)
 
-// SCK_PIN = 18; MISO_PIN = 19; MOSI_PIN = 23; SS_PIN = 5; GDO0 = 2;
-CC1101 radio(SS_PIN,  MISO_PIN);   // SS (CSN), MISO
 
 // codes for the various requests and responses
 enum { 
@@ -23,7 +46,7 @@ enum {
     SAVED_TOTAL = 0xCE
 };
 
-long today, yesterday, last7, last28, total;
+long today, yesterday, last7, last28, total = 0;
   
 uint32_t pingTimer;         // used for the periodic pings see below
 uint32_t ledTimer;          // used for LED blinking when we receive a packet
@@ -60,7 +83,13 @@ void setup() {
     addressLQI = 255; // set received LQI to lowest value
     addressValid = false;
 
-    SPI.begin();
+    #ifdef WROOM
+        SPI.begin();
+    #endif
+
+    #ifdef TTGO
+        SPITTGO.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
+    #endif
 
     Serial.begin(115200);
     Serial.println();
@@ -316,7 +345,12 @@ void receivePacket(void) {
             snprintf (msg, MSG_BUFFER_SIZE, "Today: %ld Wh", today);
             Serial.print("MQTT publish message: ");
             Serial.println(msg);
-            //client.publish("outTopic", msg);
+            //client.publish("iboost/hotWater", msg);
+            //client.publish("iboost/savedToday", msg);
+            //client.publish("solar/savedYesterday", msg);
+            //client.publish("solar/savedLast7", msg);
+            //client.publish("solar/savedLast28", msg);
+            //client.publish("solar/savedTotal", msg);
         }
         // Update LED timer to flash LED (packet received)
         ledTimer = millis();
@@ -404,7 +438,7 @@ void connectToMQTTBroker(void) {
             Serial.println("connected");
             client.setSocketTimeout(120);
 
-            client.publish("solar/water", "Connected");
+            client.publish("solar/water", "Connected", false);
         } else {
             Serial.print("failed, rc=");
             Serial.print(client.state());
