@@ -91,12 +91,12 @@ void transmitPacket(void);
 void setup() {
     addressLQI = 255;       // set received LQI to lowest value
 
-    iboostInfo = {.today = 0, 
-                  .yesterday = 0, 
-                  .last7 = 0, 
-                  .last28 = 0, 
-                  .total = 0, 
-                  .addressValid = false};
+    iboostInfo.today = 0;
+    iboostInfo.yesterday = 0;
+    iboostInfo.last7 = 0;
+    iboostInfo.last28 = 0;
+    iboostInfo.total = 0;
+    iboostInfo.addressValid = false;
 
     #ifdef WROOM
         SPI.begin();
