@@ -20,7 +20,11 @@
     CC1101 radio(SS_PIN,  MISO_PIN);
 #endif
 
-// Lilygo TTGO: SCK_PIN = 25; MISO_PIN = 27; MOSI_PIN = 26; SS_PIN = 33;
+/* The Lilygo TTGO already uses VSPI for the display so we need to define 
+   HSPI: https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/14 to
+   use the additional SPI GPIO pins on the board.
+   Lilygo TTGO: SCK_PIN = 25; MISO_PIN = 27; MOSI_PIN = 26; SS_PIN = 33;
+*/
 #ifdef TTGO
     #define SS_PIN 33
     #define MISO_PIN 27
@@ -32,8 +36,7 @@
     CC1101 radio(SS_PIN,  MISO_PIN, SPITTGO);
 #endif
 
-
-//#define GDO0_PIN 2      // Not used in this program
+//#define GDO0_PIN 2      // Not used
 #define MSG_BUFFER_SIZE	(50)
 
 
@@ -46,18 +49,24 @@ enum {
     SAVED_TOTAL = 0xCE
 };
 
-long today, yesterday, last7, last28, total = 0;
+struct iboost {
+    long today;
+    long yesterday;
+    long last7;
+    long last28;
+    long total;
+    uint8_t address[2];
+    bool addressValid;
+} iboostInfo;
+
+//long today, yesterday, last7, last28, total = 0;
   
 uint32_t pingTimer;         // used for the periodic pings see below
 uint32_t ledTimer;          // used for LED blinking when we receive a packet
 uint32_t rxTimer;  
 uint8_t txBuf[32];
 uint8_t request;
-bool boostRequest;
-uint8_t boostTime;
-uint8_t address[2];         // this is the address of the sender
 uint8_t addressLQI, rxLQI;  // signal strength test 
-bool addressValid;
 byte packet[65];            // The CC1101 library sets the biggest packet at 61
 WiFiClient wifiClient;
 PubSubClient client(wifiClient);
@@ -80,8 +89,14 @@ void transmitPacket(void);
  * 
  */
 void setup() {
-    addressLQI = 255; // set received LQI to lowest value
-    addressValid = false;
+    addressLQI = 255;       // set received LQI to lowest value
+
+    iboostInfo = {.today = 0, 
+                  .yesterday = 0, 
+                  .last7 = 0, 
+                  .last28 = 0, 
+                  .total = 0, 
+                  .addressValid = false};
 
     #ifdef WROOM
         SPI.begin();
@@ -157,8 +172,8 @@ void loop(void) {
 
     receivePacket();
 
-    if(addressValid) {
-        if ((millis() - pingTimer > 10000) || boostRequest) { // ping every 10sec
+    if(iboostInfo.addressValid) {
+        if (millis() - pingTimer > 10000) { // ping every 10sec
             if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) {
                 transmitPacket();
             }
@@ -256,11 +271,11 @@ void receivePacket(void) {
         if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
             if(rxLQI < addressLQI) { // is the signal stronger than the previous/none
                 addressLQI = rxLQI;
-                address[0] = packet[0]; // save the address of the packet	0x1c7b; //
-                address[1] = packet[1];
-                addressValid = true;
+                iboostInfo.address[0] = packet[0]; // save the address of the packet	0x1c7b; //
+                iboostInfo.address[1] = packet[1];
+                iboostInfo.addressValid = true;
                 Serial.print("Updated the address to:");
-                sprintf(pbuf, "%02x,%02x",address[0],address[1]);
+                sprintf(pbuf, "%02x,%02x",iboostInfo.address[0],iboostInfo.address[1]);
                 Serial.println(pbuf);
             }		
         }
@@ -297,19 +312,19 @@ void receivePacket(void) {
 
             switch (packet[24]) {
                 case   SAVED_TODAY:
-                    today = p2;
+                    iboostInfo.today = p2;
                     break;
                 case   SAVED_YESTERDAY:
-                    yesterday = p2;
+                    iboostInfo.yesterday = p2;
                     break;
                 case   SAVED_LAST_7:
-                    last7 = p2;
+                    iboostInfo.last7 = p2;
                     break;
                 case   SAVED_LAST_28:
-                    last28 = p2;
+                    iboostInfo.last28 = p2;
                     break;
                 case   SAVED_TOTAL:
-                    total = p2;
+                    iboostInfo.total = p2;
                     break;
             }
 
@@ -330,19 +345,19 @@ void receivePacket(void) {
                 Serial.println("Sender Battery OK");
 
             Serial.print("Today: ");
-            Serial.print(today);
+            Serial.print(iboostInfo.today);
             Serial.print(" Wh   Yesterday: ");
-            Serial.print(yesterday);
+            Serial.print(iboostInfo.yesterday);
             Serial.print(" Wh   Last 7 Days: ");
-            Serial.print(last7);
+            Serial.print(iboostInfo.last7);
             Serial.print(" Wh   Last 28 Days: ");
-            Serial.print(last28);
+            Serial.print(iboostInfo.last28);
             Serial.print(" Wh   Total: ");
-            Serial.print(total);
+            Serial.print(iboostInfo.total);
             Serial.print(" Wh   Boost Time: ");
             Serial.println(boostTime);
 
-            snprintf (msg, MSG_BUFFER_SIZE, "Today: %ld Wh", today);
+            snprintf (msg, MSG_BUFFER_SIZE, "Today: %ld Wh", iboostInfo.today);
             Serial.print("MQTT publish message: ");
             Serial.println(msg);
             //client.publish("iboost/hotWater", msg);
@@ -367,8 +382,9 @@ void transmitPacket(void) {
     if ((request < 0xca) || (request > 0xce)) 
         request = 0xca;
 
-    txBuf[0] = address[0]; //payload
-    txBuf[1] = address[1];		  
+    // Payload
+    txBuf[0] = iboostInfo.address[0];
+    txBuf[1] = iboostInfo.address[1];		  
     txBuf[2] = 0x21;
     txBuf[3] = 0x8;
     txBuf[4] = 0x92;
@@ -380,13 +396,6 @@ void transmitPacket(void) {
     txBuf[14] = 0xa0;
     txBuf[15] = 0xa0;
     txBuf[16] = 0xc8;
-    
-// Not interested in boost in this program
-//   if(boostRequest){
-//     txBuf[4] = 0x18; // set boost time
-//     txBuf[18] = boostTime;
-//     boostRequest = false;
-//   }
 
     radio.strobe(CC1101_SIDLE);
     radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
@@ -438,7 +447,7 @@ void connectToMQTTBroker(void) {
             Serial.println("connected");
             client.setSocketTimeout(120);
 
-            client.publish("solar/water", "Connected", false);
+            //client.publish("solar/water", "Connected", false);
         } else {
             Serial.print("failed, rc=");
             Serial.print(client.state());

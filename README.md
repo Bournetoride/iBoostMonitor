@@ -5,7 +5,7 @@ Tasks:
 - Investigate the use of an interrupt to indicate a valid packet has be received - TODO
 - Feed data to existing MQTT queue on the Raspberry Pi - in progress
 - Raspberry Pi - Write information to website (and possible InfluxDb) - TODO
-- Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TODO
+- Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO Works but undecided if to use or not yet. 
 
 # iBoost Monitor
 
