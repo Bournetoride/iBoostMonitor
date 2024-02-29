@@ -357,15 +357,32 @@ void receivePacket(void) {
             Serial.print(" Wh   Boost Time: ");
             Serial.println(boostTime);
 
-            snprintf (msg, MSG_BUFFER_SIZE, "Today: %ld Wh", iboostInfo.today);
-            Serial.print("MQTT publish message: ");
+            Serial.println("MQTT publish message: ");
+
+            // How much solar we've used today to heat the hot water
+            snprintf (msg, MSG_BUFFER_SIZE, "%ld", iboostInfo.today);                        
+            Serial.print("  Saved Today: ");
             Serial.println(msg);
-            //client.publish("iboost/hotWater", msg);
-            //client.publish("iboost/savedToday", msg);
-            //client.publish("solar/savedYesterday", msg);
-            //client.publish("solar/savedLast7", msg);
-            //client.publish("solar/savedLast28", msg);
-            //client.publish("solar/savedTotal", msg);
+            client.publish("iboost/savedToday", msg, 1);
+
+            // Status of the hot water, is it hot, heating up or off
+            if (cylinderHot) {
+                snprintf (msg, MSG_BUFFER_SIZE, "HOT");                        
+            } else if (waterHeating) {
+                snprintf (msg, MSG_BUFFER_SIZE, "%Heating by Solar");                        
+            } else {
+                snprintf (msg, MSG_BUFFER_SIZE, "Off");                        
+            }
+
+            Serial.print("  Hot Water Status: ");
+            Serial.println(msg);
+            client.publish("iboost/hotWater", msg, 1);
+
+            
+            //client.publish("iboost/savedYesterday", msg);
+            //client.publish("iboost/savedLast7", msg);
+            //client.publish("iboost/savedLast28", msg);
+            //client.publish("iboost/savedTotal", msg);
         }
         // Update LED timer to flash LED (packet received)
         ledTimer = millis();
