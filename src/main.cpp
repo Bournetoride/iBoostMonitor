@@ -248,7 +248,7 @@ void receivePacket(void) {
         long p1, p2;
         char pbuf[32];
         byte boostTime;
-        bool waterHeating,cylinderHot;
+        bool waterHeating,cylinderHot, batteryOk;
 
         Serial.print("Frame: ");
         rxTimer = millis();
@@ -296,6 +296,11 @@ void receivePacket(void) {
             else
                 cylinderHot = false;
 
+            if (packet[12])
+                batteryOk = false;
+            else
+                batteryOk = true;
+
             boostTime=packet[5]; // boost time remaining (minutes)
             Serial.print("Heating: ");
             Serial.print(heating );
@@ -339,7 +344,7 @@ void receivePacket(void) {
             else
                 Serial.println("Water Heating OFF");    
 
-            if (packet[12] == 0x01)
+            if (batteryOk)
                 Serial.println("Warning: Sender Battery LOW");
             else
                 Serial.println("Sender Battery OK");
@@ -363,7 +368,7 @@ void receivePacket(void) {
             snprintf (msg, MSG_BUFFER_SIZE, "%ld", iboostInfo.today);                        
             Serial.print("  Saved Today: ");
             Serial.println(msg);
-            client.publish("iboost/savedToday", msg, 1);
+            client.publish("iboost/savedToday", msg, 0);
 
             // Status of the hot water, is it hot, heating up or off
             if (cylinderHot) {
@@ -376,9 +381,20 @@ void receivePacket(void) {
 
             Serial.print("  Hot Water Status: ");
             Serial.println(msg);
-            client.publish("iboost/hotWater", msg, 1);
+            client.publish("iboost/hotWater", msg, 0);
 
-            
+            // Status of the sender battery
+            if (batteryOk) {
+                snprintf (msg, MSG_BUFFER_SIZE, "OK"); 
+            } else {
+                snprintf (msg, MSG_BUFFER_SIZE, "LOW"); 
+            }
+
+            Serial.print("  Sender Battery: ");
+            Serial.println(msg);
+            client.publish("iboost/battery", msg, 1);
+
+
             //client.publish("iboost/savedYesterday", msg);
             //client.publish("iboost/savedLast7", msg);
             //client.publish("iboost/savedLast28", msg);
