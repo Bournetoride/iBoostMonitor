@@ -1,0 +1,3 @@
+This directory contains supporting files used by me to:
+- Raspberry Pi python script to query MQTT iboost queue, solar inverter, and push the information to my website.
+- Node application (on the website) to publish the information sent to it from the python script so I can view the information from anywhere in the world.
