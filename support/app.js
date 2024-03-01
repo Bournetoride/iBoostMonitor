@@ -29,7 +29,7 @@ function buildHtml(total, time, usedtoday, hotwater, battery) {
     var head = '<div style="width: 550px; margin: 0 auto"><head></head><body style="background: black; color: white;  font-size: x-large;"><br><br><div style="text-align: center;">'
     
 //    var body = '<h1>Solar Today: ' + total + ' kWh</h1> <h2>@' + time + '</h2>' + '<h2>Hot Water Status</h2> 
-    var body = '<h1>@ ' + time + '</h1> <h1>Solar</h1><h2>Generated Today: ' + total + ' kWh</h2>' + '<h1>Hot Water</h1> <h2>Solar Used Today: ' + usedtoday.toLocaleString() + ' Wh</h2> <h2>Shower: ' + hotwater + '</h2><h2>Sender Battery: ' + battery + '</h2>' 
+    var body = '<h1>@ ' + time + '</h1> <h1>Solar</h1><h2>Generated Today: ' + total + ' kWh</h2>' + '<h1>iBoost</h1> <h2>Saved Today: ' + usedtoday.toLocaleString() + ' Wh</h2> <h2>Water Tank: ' + hotwater + '</h2><h2>Sender Battery: ' + battery + '</h2>' 
 
     var tail = '</div></body></div></html>'
     
