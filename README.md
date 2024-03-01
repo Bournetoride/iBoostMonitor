@@ -3,9 +3,10 @@ Currently in development.
 Tasks:
 - Recieve/transmit packets and extract iBoost information - Done
 - Investigate the use of an interrupt to indicate a valid packet has be received - TODO
-- Feed data to existing MQTT queue on the Raspberry Pi - in progress
-- Raspberry Pi - Write information to website (and possible InfluxDb) - TODO
-- Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO Works but undecided if to use or not yet. 
+- Feed data to existing MQTT queue on the Raspberry Pi - Done
+- Raspberry Pi - Write information to website (and possible InfluxDb) - Website complete, InfluxDb TODO
+- Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but undecided if to use or not yet, it's a bit small. 
+- Purchased this [3.5 inch SPI serial LCD module](https://www.aliexpress.us/item/1005001999296476.html) to display iBoost information and solar information currently displayed by a Lillyo TTGO. Not due to arrive until 11th March - TODO
 
 # iBoost Monitor
 
