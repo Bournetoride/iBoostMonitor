@@ -1,0 +1,261 @@
+/**
+  S3SolarMonitor: Application to show solar and weather (OpenWeatherMap) information on a 
+  Lilygo ESP32-S3 T-Display.  Information is provided to the application via MQTT from a
+  Raspberry Pi.  The application also uses NTP to get the correct [accurate] time.
+
+  Using Arduino IDE with the board type set to 'ESP32S3 Dev Module'.
+
+  ###### DON'T FORGET ###### 
+  As we're using the TFT_eSPI library we need to modify the following file
+  to reflect the board we're using: ..\Development\ESP32\libraries\TFT_eSPI\User_Setup_Select.h
+  Selected: #include <User_Setups/Setup24_ST7789.h>  The T-Display is a 170x320 display but there 
+  isn't a specific .h file available for that [yet].
+
+  Followed these instructions:
+  https://github.com/teastainGit/LilyGO-T-display-S3-setup-and-examples/blob/main/LilyGO%20T-Display-S3%20Setup.txt
+  which explains why some libraries broke the display!
+
+**/
+ 
+
+#include <Arduino.h>
+#include <WiFi.h>
+#include <TFT_eSPI.h> 
+#include <PubSubClient.h>
+
+#include "solar-panel.h"
+#include "config.h"
+
+WiFiClient wifiClient;
+PubSubClient client(wifiClient);
+
+static portMUX_TYPE myMux = portMUX_INITIALIZER_UNLOCKED;
+
+// Hardware timer for updating clock etc.
+hw_timer_t *My_timer = NULL;
+volatile bool update = false;
+char timeStringBuff[35];      // buffer for time on the display
+char weatherDescription[35];  // buffer for the current weather description from OpenWeatherMap
+
+TFT_eSPI tft = TFT_eSPI(); 
+TFT_eSprite sprite = TFT_eSprite(&tft);
+TFT_eSprite clockSprite = TFT_eSprite(&tft);
+
+int counter=20;
+
+volatile int pvNow = 0;
+volatile float pvToday = 0.0;
+volatile float pvThisMonth = 0.0;
+volatile float weatherTemperature = 0.0;
+String ipAddress = "0:0:0:0";
+
+// Attempt to reconnect to the MQTT broker
+void reconnect(void) {
+  // Loop until we're reconnected
+  String clientId = "ESP32S3Client-";
+  clientId += String(random(0xffff), HEX);
+  boolean result = false;
+
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
+      Serial.println("connected");
+      client.setSocketTimeout(120);
+
+      // subscribe to topics we're interested in
+      if (client.subscribe("solar/pvnow", 0)) {
+        Serial.println("Subscribed to solar/pvnow");
+      };
+      if (client.subscribe("solar/pvtotal", 0)) {
+        Serial.println("Subscribed to solar/pvtotal");
+      }
+      if (client.subscribe("weather/description", 0)) {
+        Serial.println("Subscribed to weather/description");
+      }
+      if (client.subscribe("weather/outsidetemp", 0)) {
+        Serial.println("Subscribed to weather/outsidetemp");
+      }
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+void updateLocalTime(){
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return;
+  }
+
+  // Update buffer with current time
+  strftime(timeStringBuff, sizeof(timeStringBuff), "%H:%M:%S %a %b %d %Y", &timeinfo);
+}
+
+// timer interrupt routine
+void IRAM_ATTR onTimerInterrupt() {
+  portENTER_CRITICAL_ISR(&myMux);
+  update = true;
+  portEXIT_CRITICAL_ISR(&myMux);
+}
+
+// Application setup, wifi, mqtt, ntp, screen, and timer interrupt.
+void setup() {
+  Serial.begin(115200);
+
+  Serial.println("ESP32 Information:");
+  Serial.print("  ESP Chip Model:    "); Serial.println(ESP.getChipModel()); 
+  Serial.print("  CPU Freq:          "); Serial.print(ESP.getCpuFreqMHz()); Serial.println(" MHz");
+  Serial.print("  SDK Version:       "); Serial.println(ESP.getSdkVersion());
+  Serial.print("  Heap Size:         "); Serial.print(ESP.getHeapSize()); Serial.println(" bytes");
+  Serial.print("  Free Heap:         "); Serial.print(ESP.getFreeHeap()); Serial.println(" bytes");
+  Serial.print("  Used Heap:         "); Serial.print(ESP.getHeapSize()-ESP.getFreeHeap()); Serial.println(" bytes");
+  Serial.print("  Sketch Size:       "); Serial.print(ESP.getSketchSize()); Serial.println(" bytes");
+  Serial.print("  Free Sketch Space: "); Serial.print(ESP.getFreeSketchSpace()); Serial.println(" bytes");
+  Serial.println("");
+  Serial.println("Default SPI pins: ");
+  Serial.print("  MOSI: "); Serial.println(MOSI);
+  Serial.print("  MISO: "); Serial.println(MISO);
+  Serial.print("   SCK: "); Serial.println(SCK);
+  Serial.print("    SS: "); Serial.println(SS);  
+  
+  tft.init();
+  tft.setRotation(1);
+  tft.setSwapBytes(true);
+ 
+  sprite.createSprite(320, 170);
+  sprite.setSwapBytes(true);
+
+  sprite.pushImage(0, 0, 320, 170, solar);
+  sprite.setTextColor(TFT_WHITE);
+  sprite.setTextFont(2);
+  sprite.drawString("Setting up WiFi connection...", 13, 40);
+  sprite.pushSprite(0,0);
+  delay(100); 
+  
+  WiFi.begin(SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("Connecting to Wi-Fi...");
+  ipAddress = "IP:" + WiFi.localIP().toString();
+  Serial.println(ipAddress);
+
+  sprite.pushImage(0, 0, 320, 170, solar);
+  sprite.setTextColor(TFT_WHITE);
+  sprite.setTextFont(2);
+  sprite.drawString("Connecting to NTP Time Server...", 13, 40);
+  sprite.pushSprite(0,0);
+  delay(100); 
+
+  configTime(0, 3600, SNTP_TIME_SERVER);
+  updateLocalTime();
+
+  sprite.pushImage(0, 0, 320, 170, solar);
+  sprite.setTextColor(TFT_WHITE);
+  sprite.setTextFont(2);
+  sprite.drawString("Connecting to MQTT Server...", 13, 40);
+  sprite.pushSprite(0,0);
+  delay(100); 
+
+  client.setServer(MQTT_SERVER, MQTT_PORT);
+  client.setCallback(callback);
+
+  // Set up hardware timer
+  My_timer = timerBegin(0, 80, true);
+  timerAttachInterrupt(My_timer, &onTimerInterrupt, true);
+  timerAlarmWrite(My_timer, 1000000, true);           // every second
+  timerAlarmEnable(My_timer);
+}
+
+// Main loop
+void loop() {
+  // Ensure we're connected to the MQTT server
+  if (!client.connected()) {
+    reconnect();
+  }
+
+  client.loop();
+
+  // 1 second timer for clock on screen
+  if (update) {
+    // update flag
+    portENTER_CRITICAL(&myMux);
+    update = false;
+    portEXIT_CRITICAL(&myMux);
+
+    updateLocalTime();
+  }
+
+  // Update display
+  sprite.pushImage(0, 0, 320, 170, solar);
+ 
+  sprite.setTextColor(TFT_WHITE);
+  sprite.setTextFont(4);
+  sprite.drawString(timeStringBuff, 11, 3);
+  sprite.drawString(weatherDescription, 13, 40); 
+
+  sprite.setFreeFont(&FreeSerifBold18pt7b);
+  sprite.drawString("PV: " + String(pvNow) + " W", 13, 78); //40);
+  sprite.drawString("Today: " + String(pvToday) + " kW", 13, 116); //78);
+//  sprite.drawString("Month: " + String(pvThisMonth) + " kW", 13, 116);
+//  sprite.drawString("ESP Temp: " +  String((temperatureRead() - 32) / 1.8) + " C", 13, 116);
+  sprite.setTextFont(1);
+  sprite.drawString(ipAddress, 220, 157); 
+
+  sprite.pushSprite(0,0);
+}
+
+
+// MQTT callback
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
+  
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }
+
+    struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  Serial.print(&timeinfo, " : %A, %B %d %Y %H:%M:%S");
+  
+  Serial.println();
+
+  if (String(topic) == "solar/pvnow") {
+    portENTER_CRITICAL_ISR(&myMux);
+    pvNow = messageTemp.toInt();
+    portEXIT_CRITICAL_ISR(&myMux);
+  }   
+  
+  if (String(topic) == "solar/pvtotal") {
+    portENTER_CRITICAL_ISR(&myMux);
+    pvToday = messageTemp.toFloat();
+    portEXIT_CRITICAL_ISR(&myMux);
+  }
+
+  if (String(topic) == "weather/description") {
+    portENTER_CRITICAL_ISR(&myMux);
+    messageTemp.toCharArray(weatherDescription, 35);
+    portEXIT_CRITICAL_ISR(&myMux);
+  }   
+  
+  if (String(topic) == "weather/outsidetemp") {
+    portENTER_CRITICAL_ISR(&myMux);
+    weatherTemperature = messageTemp.toFloat();
+    portEXIT_CRITICAL_ISR(&myMux);
+  }
+}
