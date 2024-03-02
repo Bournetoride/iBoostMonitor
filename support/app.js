@@ -1,9 +1,6 @@
-
-text/x-generic app.js ( HTML document, ASCII text )
 var http = require('http');
 var url = require('url');
 var fs = require('fs');
-//var swig = require('swig');
 
 var server = http.createServer(function(req, res) {
     var q = url.parse(req.url, true);   // true to get query as object
@@ -26,13 +23,33 @@ var server = http.createServer(function(req, res) {
 server.listen();
 
 function buildHtml(total, time, usedtoday, hotwater, battery) {
-    var head = '<div style="width: 550px; margin: 0 auto"><head></head><body style="background: black; color: white;  font-size: x-large;"><br><br><div style="text-align: center;">'
+    var today = 0;
     
-//    var body = '<h1>Solar Today: ' + total + ' kWh</h1> <h2>@' + time + '</h2>' + '<h2>Hot Water Status</h2> 
-    var body = '<h1>@ ' + time + '</h1> <h1>Solar</h1><h2>Generated Today: ' + total + ' kWh</h2>' + '<h1>iBoost</h1> <h2>Saved Today: ' + usedtoday.toLocaleString() + ' Wh</h2> <h2>Water Tank: ' + hotwater + '</h2><h2>Sender Battery: ' + battery + '</h2>' 
+    // format usedtoday value
+    if (usedtoday > 0) {
+        today = usedtoday / 1000;
+    }
+    
+    var head = '<div style="width: 550px; margin: 0 auto"><head></head><body style="background: black; color: white;  font-size: x-large;"><br><br><div style="text-align: center;">'
 
+    var updateTime = '<h1>@ ' + time + '</h1>';
+    var solarHeader = '<h1>Solar</h1>';
+    var generatedToday = '<h2>Generated Today: ' + total + ' kWh</h2>';
+    var iboostHeader = '<h1>iBoost</h1>';
+    var savedToday = '<h2>Saved Today: ' + today + ' kWh</h2>';
+    var waterTank = '<h2>Water Tank: ' + hotwater + '</h2>';
+    
+    // If battery is low make text red to highlight
+    var senderBattery = '<h2>Sender Battery: ';
+    if (battery == 'LOW') {
+        senderBattery += '<strong style="color: red;">' + battery + '</strong></h2>'
+    } else {
+        senderBattery += battery + '</h2>'
+    }
+    
+    var body = updateTime + solarHeader + generatedToday + iboostHeader + savedToday + waterTank + senderBattery;
+    
     var tail = '</div></body></div></html>'
     
     return '<!DOCTYPE html>' + head + body + tail
 };
-
