@@ -3,6 +3,7 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
+#include "esp_log.h"
 
 #ifdef TTGO
 #include <TFT_eSPI.h> 
@@ -37,6 +38,9 @@
     CC1101 radio(SS_PIN,  MISO_PIN, SPITTGO);
 #endif
 
+// Logging level
+//#define LOG_LOCAL_LEVEL ESP_LOG_INFO
+
 //#define GDO0_PIN 2      // Not used
 #define MSG_BUFFER_SIZE	(100)
 
@@ -60,8 +64,9 @@ struct iboost {
     bool addressValid;
 } iboostInfo;
 
-//long today, yesterday, last7, last28, total = 0;
-  
+// Logging tag
+static const char* TAG = "iBoost";
+
 uint32_t pingTimer;         // used for the periodic pings see below
 uint32_t ledTimer;          // used for LED blinking when we receive a packet
 uint32_t rxTimer;  
@@ -73,8 +78,8 @@ WiFiClient wifiClient;
 PubSubClient client(wifiClient);
 char msg[MSG_BUFFER_SIZE];
 
+// For MQTT messages
 JsonDocument doc;
-//JsonObject& JSONencoder = doc.to<JsonObject>();
 char JSONmessageBuffer[100];
 
 long lastReconnectAttempt = 0;  // Used for non blocking MQTT reconnect
@@ -111,19 +116,19 @@ void setup() {
         SPITTGO.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
     #endif
 
-    Serial.begin(115200);
-    Serial.println();
-    Serial.println("SPI OK");
+    ESP_LOGI(TAG, "Setting up WiFi, MQTT, and CC1101");
 
-    Serial.print("Connecting to Wi-Fi...");
+    //Serial.begin(115200);
+    ESP_LOGI(TAG, "SPI OK");
+
+    ESP_LOGI(TAG, "Connecting to Wi-Fi...");
     WiFi.begin(SSID, WIFI_PASSWORD);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.print(".");
+        //Serial.print(".");
     }
-    Serial.println("");
-    Serial.print("IP Address:"); 
-    Serial.println(WiFi.localIP().toString());
+
+    ESP_LOGI(TAG, "IP Address: %s", WiFi.localIP().toString());
 
     /* MQTT setup - this will be used to send data to the MQTT broker on a Raspberry 
        Pi so that it can be saved to a database (InfluxDb) for viewing in Grafana and
@@ -145,7 +150,7 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);   
     digitalWrite(LED_BUILTIN, LOW);
 
-    Serial.println("Setup Finished");
+    ESP_LOGI(TAG, "Setup Finished");
 }
 
 /**
@@ -237,7 +242,8 @@ void radioSetup() {
     radio.strobe(CC1101_SPWD); 
 
     radio.setRXstate();             // Set the current state to RX : listening for RF packets
-    Serial.println("CC1101 set up complete, set to Rx");
+
+    ESP_LOGI(TAG, "CC1101 set up complete, set to Rx");
 }
 
 /**
@@ -254,23 +260,15 @@ void receivePacket(void) {
         char pbuf[32];
         byte boostTime;
         bool waterHeating,cylinderHot, batteryOk;
+        
+        ESP_LOGI(TAG, "Frame received: ");
+        // log level needs to be higher than LOG_LOCAL_LEVEL to get something to print!!
+        ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
 
-        Serial.print("Frame: ");
         rxTimer = millis();
         rxLQI = radio.getLQI();
-        // Print hex values of packet
-        for (int i = 0; i < pkt_size; i++) {
-            sprintf(pbuf, "%02x", packet[i]);
-            Serial.print(pbuf); 
-            Serial.print(",");
-        }
 
-        Serial.print("len=");
-        Serial.print(pkt_size);
-        Serial.print(" RSSI="); // for field tests to check the signal strength
-        Serial.print(radio.getRSSIdbm());
-        Serial.print(" LQI="); // for field tests to check the signal quality
-        Serial.println(rxLQI);
+        ESP_LOGI(TAG, "len=%d RSSI=%d LQI=%d", pkt_size, radio.getRSSIdbm(), rxLQI);
 
         //   buddy request                            sender packet
         if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
@@ -279,9 +277,8 @@ void receivePacket(void) {
                 iboostInfo.address[0] = packet[0]; // save the address of the packet	0x1c7b; //
                 iboostInfo.address[1] = packet[1];
                 iboostInfo.addressValid = true;
-                Serial.print("Updated the address to:");
-                sprintf(pbuf, "%02x,%02x",iboostInfo.address[0],iboostInfo.address[1]);
-                Serial.println(pbuf);
+
+                ESP_LOGI(TAG, "Updated iBoost the address to: %02x,%02x", iboostInfo.address[0], iboostInfo.address[1]);
             }		
         }
 
@@ -307,18 +304,21 @@ void receivePacket(void) {
                 batteryOk = true;
 
             boostTime=packet[5]; // boost time remaining (minutes)
-            Serial.print("Heating: ");
-            Serial.print(heating );
-            Serial.print("  P1: ");
-            Serial.print(p1 );
-            Serial.print("  Import: ");
-            Serial.print(p1 / 390 );        // was 360
-            Serial.print("  P2: ");
-            Serial.print(p2 );
-            Serial.print("  P3: ");
-            Serial.print((* (signed long*) &packet[29]) );
-            Serial.print("  P4: ");
-            Serial.println((* (signed long*) &packet[30]) );
+
+            // ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  Import: %d  P2: %ld  P3: %ld  P4: %ld", 
+            //      heating, p1/390, p2, (*(signed long*) &packet[29]), (*(signed long*) &packet[30]));
+            // Serial.print("Heating: ");
+            // Serial.print(heating );
+            // Serial.print("  P1: ");
+            // Serial.print(p1 );
+            // Serial.print("  Import: ");
+            // Serial.print(p1 / 390 );        // was 360
+            // Serial.print("  P2: ");
+            // Serial.print(p2 );
+            // Serial.print("  P3: ");
+            // Serial.print((* (signed long*) &packet[29]) );
+            // Serial.print("  P4: ");
+            // Serial.println((* (signed long*) &packet[30]) );
 
             switch (packet[24]) {
                 case   SAVED_TODAY:
@@ -339,33 +339,23 @@ void receivePacket(void) {
             }
 
             if (cylinderHot)
-                Serial.println("Water Tank HOT");       // Hot water tank is hot!
+                ESP_LOGI(TAG, "Water Tank HOT");
             else if (boostTime > 0)
-                Serial.println("Manual Boost ON");
+                ESP_LOGI(TAG, "Manual Boost ON"); 
             else if (waterHeating) {
-                Serial.print("Heating by Solar = ");    // How many watts of solar we're using to heat the water
-                Serial.println(heating);
+                ESP_LOGI(TAG, "Heating by Solar = %d Watts", heating);
             }
-            else
-                Serial.println("Water Heating OFF");    
+            else {
+                ESP_LOGI(TAG, "Water Heating OFF");
+            }
 
             if (batteryOk)
-                Serial.println("Warning: Sender Battery OK");
+                ESP_LOGI(TAG, "Sender Battery OK");
             else
-                Serial.println("Sender Battery LOW");
+                ESP_LOGI(TAG, "Warning - Sender Battery LOW");
 
-            Serial.print("Today: ");
-            Serial.print(iboostInfo.today);
-            Serial.print(" Wh   Yesterday: ");
-            Serial.print(iboostInfo.yesterday);
-            Serial.print(" Wh   Last 7 Days: ");
-            Serial.print(iboostInfo.last7);
-            Serial.print(" Wh   Last 28 Days: ");
-            Serial.print(iboostInfo.last28);
-            Serial.print(" Wh   Total: ");
-            Serial.print(iboostInfo.total);
-            Serial.print(" Wh   Boost Time: ");
-            Serial.println(boostTime);
+            ESP_LOGI(TAG, "Today: %ld Wh   Yesterday: %ld Wh   Last 7 Days: %ld Wh   Last 28 Days: %ld Wh   Total: %ld Wh   Boost Time: %d", 
+                iboostInfo.today, iboostInfo.yesterday, iboostInfo.last7, iboostInfo.last28, iboostInfo.total, boostTime);
 
             // Create MQTT JSON object //
 
@@ -391,9 +381,7 @@ void receivePacket(void) {
             serializeJson(doc, msg);
             client.publish("iboost/iboost", msg);
 
-            Serial.println("Published MQTT message: ");
-            Serial.print("  ");
-            Serial.println(msg);
+            ESP_LOGI(TAG, "Published MQTT message: %s", msg);
 
             //client.publish("iboost/savedYesterday", msg);
             //client.publish("iboost/savedLast7", msg);
@@ -440,22 +428,22 @@ void transmitPacket(void) {
     radio.strobe(CC1101_SFRX);
     radio.strobe(CC1101_SIDLE);
     radio.strobe(CC1101_SRX);
-    Serial.print("Sent request: ");
+
     switch (request) {
         case   SAVED_TODAY:
-            Serial.println("Saved Today");
+            ESP_LOGI(TAG, "Sent request: Saved Today");
             break;
         case   SAVED_YESTERDAY:
-            Serial.println("Saved Yesterday");
+            ESP_LOGI(TAG, "Sent request: Saved Yesterday");
             break;
         case   SAVED_LAST_7:
-            Serial.println("Saved Last 7 Days");
+            ESP_LOGI(TAG, "Sent request: Saved Last 7 Days");
             break;
         case   SAVED_LAST_28:
-            Serial.println("Saved Last 28 Days");
+            ESP_LOGI(TAG, "Sent request: Saved Last 28 Days");
             break;
         case   SAVED_TOTAL:
-            Serial.println("Saved In Total");
+            ESP_LOGI(TAG, "Sent request: Saved In Total");
             break;
     }
 
@@ -474,17 +462,13 @@ void connectToMQTTBroker(void) {
     boolean result = false;
 
     while (!client.connected()) {
-        Serial.print("Attempting MQTT connection...");
+        ESP_LOGI(TAG, "Attempting MQTT connection...");
         // Attempt to connect
         if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
-            Serial.println("connected");
+            ESP_LOGI(TAG, "  Connected");
             client.setSocketTimeout(120);
-
-            //client.publish("solar/water", "Connected", false);
         } else {
-            Serial.print("failed, rc=");
-            Serial.print(client.state());
-            Serial.println(" trying again in 5 seconds");
+            ESP_LOGE(TAG, "  Failed, rc=%d - trying again in 5 seconds", client.state());
             // Wait 5 seconds before retrying
             delay(5000);
         }
@@ -499,9 +483,9 @@ void connectToMQTTBroker(void) {
 bool reconnectToMQTTBroker(void) {
     bool connected = false;
 
-    Serial.print("Attempting to reconnect with MQTT server...");
+    ESP_LOGI(TAG, "Attempting to reconnect with MQTT server...");
     if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
-        Serial.println("connected");
+        ESP_LOGI(TAG, "Connected");
         client.setSocketTimeout(120);
         connected = true;
     } 
