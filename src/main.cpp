@@ -174,7 +174,7 @@ void loop(void) {
 
     if(iboostInfo.addressValid) {
         if (millis() - pingTimer > 10000) { // ping every 10sec
-            if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) {
+            if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) { // wait between 1-2 seconds after rx to tx
                 transmitPacket();
             }
         }
@@ -345,9 +345,9 @@ void receivePacket(void) {
                 Serial.println("Water Heating OFF");    
 
             if (batteryOk)
-                Serial.println("Warning: Sender Battery LOW");
+                Serial.println("Warning: Sender Battery OK");
             else
-                Serial.println("Sender Battery OK");
+                Serial.println("Sender Battery LOW");
 
             Serial.print("Today: ");
             Serial.print(iboostInfo.today);
@@ -368,7 +368,7 @@ void receivePacket(void) {
             snprintf (msg, MSG_BUFFER_SIZE, "%ld", iboostInfo.today);                        
             Serial.print("  Saved Today: ");
             Serial.println(msg);
-            client.publish("iboost/savedToday", msg, 0);
+            client.publish("iboost/savedToday", msg);
 
             // Status of the hot water, is it hot, heating up or off
             if (cylinderHot) {
@@ -381,7 +381,7 @@ void receivePacket(void) {
 
             Serial.print("  Hot Water Status: ");
             Serial.println(msg);
-            client.publish("iboost/hotWater", msg, 0);
+            client.publish("iboost/hotWater", msg);
 
             // Status of the sender battery
             if (batteryOk) {
@@ -392,7 +392,7 @@ void receivePacket(void) {
 
             Serial.print("  Sender Battery: ");
             Serial.println(msg);
-            client.publish("iboost/battery", msg, 1);
+            client.publish("iboost/battery", msg);
 
 
             //client.publish("iboost/savedYesterday", msg);
