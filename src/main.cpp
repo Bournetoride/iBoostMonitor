@@ -367,37 +367,7 @@ void receivePacket(void) {
             Serial.print(" Wh   Boost Time: ");
             Serial.println(boostTime);
 
-            Serial.println("MQTT publish message: ");
-
-            // // How much solar we've used today to heat the hot water
-            // snprintf (msg, MSG_BUFFER_SIZE, "%ld", iboostInfo.today);                        
-            // Serial.print("  Saved Today: ");
-            // Serial.println(msg);
-            // client.publish("iboost/savedToday", msg);
-
-            // // Status of the hot water, is it hot, heating up or off
-            // if (cylinderHot) {
-            //     snprintf (msg, MSG_BUFFER_SIZE, "HOT");                        
-            // } else if (waterHeating) {
-            //     snprintf (msg, MSG_BUFFER_SIZE, "%Heating by Solar");                        
-            // } else {
-            //     snprintf (msg, MSG_BUFFER_SIZE, "Off");                        
-            // }
-
-            // Serial.print("  Hot Water Status: ");
-            // Serial.println(msg);
-            // client.publish("iboost/hotWater", msg);
-
-            // // // Status of the sender battery
-            // // if (batteryOk) {
-            // //     snprintf (msg, MSG_BUFFER_SIZE, "OK"); 
-            // // } else {
-            // //     snprintf (msg, MSG_BUFFER_SIZE, "LOW"); 
-            // // }
-
-            // // Serial.print("  Sender Battery: ");
-            // // Serial.println(msg);
-            // // client.publish("iboost/battery", msg);
+            // Create MQTT JSON object //
 
             // How much solar we have used today to heat the hot water
             doc["savedToday"] = iboostInfo.today;
@@ -419,10 +389,12 @@ void receivePacket(void) {
             }
             
             serializeJson(doc, msg);
+            client.publish("iboost/iboost", msg);
+
+            Serial.println("Published MQTT message: ");
             Serial.print("  ");
             Serial.println(msg);
 
-            client.publish("iboost/iboost", msg);
             //client.publish("iboost/savedYesterday", msg);
             //client.publish("iboost/savedLast7", msg);
             //client.publish("iboost/savedLast28", msg);
