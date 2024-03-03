@@ -4,6 +4,8 @@
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #ifdef TTGO
 #include <TFT_eSPI.h> 
@@ -38,12 +40,14 @@
     CC1101 radio(SS_PIN,  MISO_PIN, SPITTGO);
 #endif
 
-// Logging level
-//#define LOG_LOCAL_LEVEL ESP_LOG_INFO
+// Task specific variables
+TaskHandle_t blinkLEDTaskHandle = NULL;
+QueueHandle_t ledTaskQueue;
+int queueSize = 10;
 
 //#define GDO0_PIN 2      // Not used
-#define MSG_BUFFER_SIZE	(100)
 
+#define MSG_BUFFER_SIZE	(100)
 
 // codes for the various requests and responses
 enum { 
@@ -87,6 +91,7 @@ String clientId = "ESP32Client-";
 
 
 /* Function prototypes */
+void blinkLEDTask(void *arg);
 void connectToMQTTBroker(void);
 bool reconnectToMQTTBroker(void);
 void radioSetup();
@@ -99,6 +104,12 @@ void transmitPacket(void);
  * 
  */
 void setup() {
+    // Create queue for sending messages to the LED task
+    ledTaskQueue = xQueueCreate(queueSize, sizeof(bool));
+    if (ledTaskQueue == NULL) {
+        ESP_LOGE(TAG, "Error creating ledTaskQueue");
+    }
+
     addressLQI = 255;       // set received LQI to lowest value
 
     iboostInfo.today = 0;
@@ -151,6 +162,8 @@ void setup() {
     digitalWrite(LED_BUILTIN, LOW);
 
     ESP_LOGI(TAG, "Setup Finished");
+
+    xTaskCreate(blinkLEDTask, "blinkLEDTask", 1024, NULL, tskIDLE_PRIORITY, &blinkLEDTaskHandle);
 }
 
 /**
@@ -175,10 +188,10 @@ void loop(void) {
 
 
     /* Logic to turn on the LED for 200ms without blocking the loop - move to RTOS task? */
-    if (millis() - ledTimer > 200)
-        digitalWrite(LED_BUILTIN, LOW);
-    else
-        digitalWrite(LED_BUILTIN, HIGH);
+    // if (millis() - ledTimer > 200)
+    //     digitalWrite(LED_BUILTIN, LOW);
+    // else
+    //     digitalWrite(LED_BUILTIN, HIGH);
 
     receivePacket();
 
@@ -191,6 +204,24 @@ void loop(void) {
     }
 }
 
+/**
+ * @brief Blink the LED for 200ms when a flag is set
+ * 
+ * @param arg Parameters pass to task when it is created
+ */
+void blinkLEDTask(void *arg) {
+    bool flag = false;
+
+    while(1) {
+        xQueueReceive(ledTaskQueue, &flag, 0);
+        if (flag) {
+            digitalWrite(LED_BUILTIN, HIGH);        // Turn LED on
+            vTaskDelay(200 / portTICK_PERIOD_MS);   // Wait 200ms
+            digitalWrite(LED_BUILTIN, LOW);         // Turn LED off
+            flag = false;                           // Reset flag
+        }
+    }
+}
 
 /**
  * @brief Set up the CC1101 for receiving iBoost packets
@@ -260,15 +291,17 @@ void receivePacket(void) {
         char pbuf[32];
         byte boostTime;
         bool waterHeating,cylinderHot, batteryOk;
+        bool ledFlag = true;
         
-        ESP_LOGI(TAG, "Frame received: ");
-        // log level needs to be higher than LOG_LOCAL_LEVEL to get something to print!!
-        ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
-
         rxTimer = millis();
         rxLQI = radio.getLQI();
 
-        ESP_LOGI(TAG, "len=%d RSSI=%d LQI=%d", pkt_size, radio.getRSSIdbm(), rxLQI);
+        ESP_LOGI(TAG, "Valid frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, radio.getRSSIdbm(), rxLQI);
+
+        #ifdef HEXDUMP  // declared in platformio.ini
+            // log level needs to be ESP_LOG_ERROR to get something to print!!
+            ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
+        #endif
 
         //   buddy request                            sender packet
         if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
@@ -278,7 +311,7 @@ void receivePacket(void) {
                 iboostInfo.address[1] = packet[1];
                 iboostInfo.addressValid = true;
 
-                ESP_LOGI(TAG, "Updated iBoost the address to: %02x,%02x", iboostInfo.address[0], iboostInfo.address[1]);
+                ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboostInfo.address[0], iboostInfo.address[1]);
             }		
         }
 
@@ -305,16 +338,8 @@ void receivePacket(void) {
 
             boostTime=packet[5]; // boost time remaining (minutes)
 
-            // ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  Import: %d  P2: %ld  P3: %ld  P4: %ld", 
-            //      heating, p1/390, p2, (*(signed long*) &packet[29]), (*(signed long*) &packet[30]));
-            // Serial.print("Heating: ");
-            // Serial.print(heating );
-            // Serial.print("  P1: ");
-            // Serial.print(p1 );
-            // Serial.print("  Import: ");
-            // Serial.print(p1 / 390 );        // was 360
-            // Serial.print("  P2: ");
-            // Serial.print(p2 );
+            ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  Import: %ld  P2: %ld", heating, p1, p1/390, p2);
+
             // Serial.print("  P3: ");
             // Serial.print((* (signed long*) &packet[29]) );
             // Serial.print("  P4: ");
@@ -390,6 +415,9 @@ void receivePacket(void) {
         }
         // Update LED timer to flash LED (packet received)
         ledTimer = millis();
+        
+        // Send message to LED task to blink the LED to show we've received a packet
+        xQueueSend(ledTaskQueue, &ledFlag, 0);
     }
 }
 
@@ -485,10 +513,12 @@ bool reconnectToMQTTBroker(void) {
 
     ESP_LOGI(TAG, "Attempting to reconnect with MQTT server...");
     if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
-        ESP_LOGI(TAG, "Connected");
+        ESP_LOGI(TAG, "Reconnected to MQTT server.");
         client.setSocketTimeout(120);
         connected = true;
-    } 
+    } else {
+        ESP_LOGE(TAG, "Reconnect to MQTT server failed!");
+    }
 
     return connected;
 }
