@@ -72,7 +72,6 @@ struct iboost {
 static const char* TAG = "iBoost";
 
 uint32_t pingTimer;         // used for the periodic pings see below
-uint32_t ledTimer;          // used for LED blinking when we receive a packet
 uint32_t rxTimer;  
 uint8_t txBuf[32];
 uint8_t request;
@@ -104,10 +103,14 @@ void transmitPacket(void);
  * 
  */
 void setup() {
+    bool setupFlag = true;      // Flag for confirming setup was sucessfull or not
+    BaseType_t xReturned;
+
     // Create queue for sending messages to the LED task
     ledTaskQueue = xQueueCreate(queueSize, sizeof(bool));
     if (ledTaskQueue == NULL) {
         ESP_LOGE(TAG, "Error creating ledTaskQueue");
+        setupFlag = false;
     }
 
     addressLQI = 255;       // set received LQI to lowest value
@@ -159,11 +162,20 @@ void setup() {
     /* LED setup - so we can use the module without serial terminal,
        set low to start so it's off and flashes when it receives a packet */
     pinMode(LED_BUILTIN, OUTPUT);   
-    digitalWrite(LED_BUILTIN, LOW);
 
-    ESP_LOGI(TAG, "Setup Finished");
+    xReturned = xTaskCreate(blinkLEDTask, "blinkLEDTask", 1024, NULL, tskIDLE_PRIORITY, &blinkLEDTaskHandle);
+    if (xReturned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create blinkLEDTask");
+        setupFlag = false;
+    }
 
-    xTaskCreate(blinkLEDTask, "blinkLEDTask", 1024, NULL, tskIDLE_PRIORITY, &blinkLEDTaskHandle);
+    // Everything set up okay so turn (blue) LED off
+    if (setupFlag) {
+        digitalWrite(LED_BUILTIN, LOW);
+        ESP_LOGI(TAG, "Setup Finished");
+    } else {
+        ESP_LOGE(TAG, "Setup Failed!!!");
+    }
 }
 
 /**
@@ -181,17 +193,11 @@ void loop(void) {
                 lastReconnectAttempt = 0;
             }
         }
-    } else {
-        // MQTT - We're not interested in receiving anything, only publishing.
-        client.loop();
     }
-
-
-    /* Logic to turn on the LED for 200ms without blocking the loop - move to RTOS task? */
-    // if (millis() - ledTimer > 200)
-    //     digitalWrite(LED_BUILTIN, LOW);
-    // else
-    //     digitalWrite(LED_BUILTIN, HIGH);
+    // } else {
+    //     // MQTT - We're not interested in receiving anything, only publishing so no need to keep checking
+    //     client.loop();
+    // }
 
     receivePacket();
 
@@ -207,7 +213,7 @@ void loop(void) {
 /**
  * @brief Blink the LED for 200ms when a flag is set
  * 
- * @param arg Parameters pass to task when it is created
+ * @param arg Parameters passed to task when it is created
  */
 void blinkLEDTask(void *arg) {
     bool flag = false;
@@ -382,8 +388,7 @@ void receivePacket(void) {
             ESP_LOGI(TAG, "Today: %ld Wh   Yesterday: %ld Wh   Last 7 Days: %ld Wh   Last 28 Days: %ld Wh   Total: %ld Wh   Boost Time: %d", 
                 iboostInfo.today, iboostInfo.yesterday, iboostInfo.last7, iboostInfo.last28, iboostInfo.total, boostTime);
 
-            // Create MQTT JSON object //
-
+            // Create JSON for sending via MQTT to MQTT server
             // How much solar we have used today to heat the hot water
             doc["savedToday"] = iboostInfo.today;
             
@@ -413,11 +418,14 @@ void receivePacket(void) {
             //client.publish("iboost/savedLast28", msg);
             //client.publish("iboost/savedTotal", msg);
         }
-        // Update LED timer to flash LED (packet received)
-        ledTimer = millis();
-        
+
         // Send message to LED task to blink the LED to show we've received a packet
         xQueueSend(ledTaskQueue, &ledFlag, 0);
+
+        // Need to investigate how to do this in platformio
+        // char stats_buffer[1024];
+        // vTaskList(stats_buffer);
+        // ESP_LOGI(TAG, "Task stats: %s", stats_buffer);
     }
 }
 
@@ -486,8 +494,7 @@ void transmitPacket(void) {
  * 
  */
 void connectToMQTTBroker(void) {
-    // Loop until we're reconnected
-    boolean result = false;
+    // Loop until we're connected
 
     while (!client.connected()) {
         ESP_LOGI(TAG, "Attempting MQTT connection...");
@@ -511,9 +518,9 @@ void connectToMQTTBroker(void) {
 bool reconnectToMQTTBroker(void) {
     bool connected = false;
 
-    ESP_LOGI(TAG, "Attempting to reconnect with MQTT server...");
+    ESP_LOGW(TAG, "Attempting to reconnect with MQTT server...");
     if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
-        ESP_LOGI(TAG, "Reconnected to MQTT server.");
+        ESP_LOGW(TAG, "Reconnected to MQTT server.");
         client.setSocketTimeout(120);
         connected = true;
     } else {
