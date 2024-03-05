@@ -40,10 +40,14 @@
     CC1101 radio(SS_PIN,  MISO_PIN, SPITTGO);
 #endif
 
-// Task specific variables
+// freeRTOS specific variables
 TaskHandle_t blinkLEDTaskHandle = NULL;
+TaskHandle_t mqqtKeepAliveTaskHandle = NULL;
+
 QueueHandle_t ledTaskQueue;
 int queueSize = 10;
+
+SemaphoreHandle_t sema_MQTT_KeepAlive;
 
 //#define GDO0_PIN 2      // Not used
 
@@ -71,6 +75,7 @@ struct iboost {
 // Logging tag
 static const char* TAG = "iBoost";
 
+// Global variables
 uint32_t pingTimer;         // used for the periodic pings see below
 uint32_t rxTimer;  
 uint8_t txBuf[32];
@@ -78,25 +83,26 @@ uint8_t request;
 uint8_t addressLQI, rxLQI;  // signal strength test 
 byte packet[65];            // The CC1101 library sets the biggest packet at 61
 WiFiClient wifiClient;
-PubSubClient client(wifiClient);
+byte macAddress[6];
+PubSubClient MQTTclient(MQTT_SERVER, MQTT_PORT, wifiClient);
 char msg[MSG_BUFFER_SIZE];
 
 // For MQTT messages
 JsonDocument doc;
 char JSONmessageBuffer[100];
 
-long lastReconnectAttempt = 0;  // Used for non blocking MQTT reconnect
-String clientId = "ESP32Client-";
-
-
 /* Function prototypes */
-void blinkLEDTask(void *arg);
-void connectToMQTTBroker(void);
-bool reconnectToMQTTBroker(void);
+void blinkLEDTask(void *parameter);
+void mqqtKeepAliveTask(void *parameter);
+// void reconnectToMQTTTask(void *parameter);
+// void connectToMQTTBroker(void);
+// bool reconnectToMQTTBroker(void);
 void radioSetup();
 void receivePacket(void);
 void transmitPacket(void);
-
+void connectToWiFi(void);
+void connectToMQTT(void);
+void onWiFiEvent(WiFiEvent_t event);
 
 /**
  * @brief Set up everything. SPI, WiFi, MQTT, and CC1101
@@ -112,6 +118,10 @@ void setup() {
         ESP_LOGE(TAG, "Error creating ledTaskQueue");
         setupFlag = false;
     }
+
+    // Create MQTT semaphore
+    sema_MQTT_KeepAlive = xSemaphoreCreateBinary();
+    xSemaphoreGive(sema_MQTT_KeepAlive);            // Stop keep alive when publishing
 
     addressLQI = 255;       // set received LQI to lowest value
 
@@ -135,33 +145,19 @@ void setup() {
     //Serial.begin(115200);
     ESP_LOGI(TAG, "SPI OK");
 
-    ESP_LOGI(TAG, "Connecting to Wi-Fi...");
-    WiFi.begin(SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        //Serial.print(".");
-    }
-
-    ESP_LOGI(TAG, "IP Address: %s", WiFi.localIP().toString());
-
-    /* MQTT setup - this will be used to send data to the MQTT broker on a Raspberry 
-       Pi so that it can be saved to a database (InfluxDb) for viewing in Grafana and
-       for another ESP32 with a display to show the information along with all the 
-       solar information it currently displays from the solar invertor.  Aditionally, 
-       the state of the water (HOT or not) will be sent to an external web page so 
-       we can view it if we're not at home to see if we need to put the hot water on
-       or not.
-    */
-    clientId += String(random(0xffff), HEX);
-    client.setServer(MQTT_SERVER, MQTT_PORT);
-    connectToMQTTBroker();
-
     // Set up the radio
     radioSetup();
     
     /* LED setup - so we can use the module without serial terminal,
        set low to start so it's off and flashes when it receives a packet */
     pinMode(LED_BUILTIN, OUTPUT);   
+
+    /* This task also creates/checks the WiFi connection */
+    xReturned = xTaskCreate( mqqtKeepAliveTask, "mqqtKeepAliveTask", 8192, NULL, 1, &mqqtKeepAliveTaskHandle);
+    if (xReturned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create mqqtKeepAliveTask");
+        setupFlag = false;
+    }
 
     xReturned = xTaskCreate(blinkLEDTask, "blinkLEDTask", 1024, NULL, tskIDLE_PRIORITY, &blinkLEDTaskHandle);
     if (xReturned != pdPASS) {
@@ -183,22 +179,6 @@ void setup() {
  * 
  */
 void loop(void) {
-    // Ensure we're connected to the MQTT server
-    if (!client.connected()) {
-        long now = millis();
-        if (now - lastReconnectAttempt > 5000) {
-            lastReconnectAttempt = now;
-            // Attempt to reconnect
-            if (reconnectToMQTTBroker()) {
-                lastReconnectAttempt = 0;
-            }
-        }
-    }
-    // } else {
-    //     // MQTT - We're not interested in receiving anything, only publishing so no need to keep checking
-    //     client.loop();
-    // }
-
     receivePacket();
 
     if(iboostInfo.addressValid) {
@@ -211,11 +191,11 @@ void loop(void) {
 }
 
 /**
- * @brief Blink the LED for 200ms when a flag is set
+ * @brief Blink the LED for 200ms when a flag is set.
  * 
- * @param arg Parameters passed to task when it is created
+ * @param parameter Parameters passed to task on creation.
  */
-void blinkLEDTask(void *arg) {
+void blinkLEDTask(void *parameter) {
     bool flag = false;
 
     while(1) {
@@ -227,7 +207,45 @@ void blinkLEDTask(void *arg) {
             flag = false;                           // Reset flag
         }
     }
+    vTaskDelete (NULL);
 }
+
+
+/**
+ * @brief Task to keep connection to MQTT broker alive.  Makes the initial
+ * connection to the MQTT broker and keeps the connection open along with 
+ * the WiFi connection.
+ * 
+ * Data is sent to the MQTT broker on a Raspberry Pi so that it can be saved to a 
+ * database (InfluxDb) for viewing in Grafana and the state of the water (HOT or not) 
+ * will be sent to an external web page so can it can be viewed to see if we need to 
+ * put the hot water on or not.
+ * 
+ * @param parameter Parameters passed to task on creation.
+ */
+void mqqtKeepAliveTask(void *parameter) {
+    // setting must be set before a mqtt connection is made
+    MQTTclient.setKeepAlive( 90 ); // setting keep alive to 90 seconds makes for a very reliable connection.
+    while(1) {
+        //check for a is-connected and if the WiFi 'thinks' its connected, found checking on both is more realible than just a single check
+        if ((MQTTclient.connected()) && (WiFi.status() == WL_CONNECTED))
+        {
+            xSemaphoreTake( sema_MQTT_KeepAlive, portMAX_DELAY ); // whiles MQTTlient.loop() is running no other mqtt operations should be in process
+            MQTTclient.loop();
+            xSemaphoreGive( sema_MQTT_KeepAlive );
+        } else {
+            ESP_LOGI(TAG, "MQTT keep alive found MQTT status %s,  WiFi status %s", String(MQTTclient.connected()), String(WiFi.status()));
+            if (!(WiFi.status() == WL_CONNECTED)) {
+                connectToWiFi();
+            }
+
+            connectToMQTT();
+        }
+        vTaskDelay(250); //task runs approx every 250 mS
+    }
+    vTaskDelete (NULL);
+}
+
 
 /**
  * @brief Set up the CC1101 for receiving iBoost packets
@@ -408,10 +426,15 @@ void receivePacket(void) {
                 doc["battery"] = "LOW"; 
             }
             
-            serializeJson(doc, msg);
-            client.publish("iboost/iboost", msg);
-
-            ESP_LOGI(TAG, "Published MQTT message: %s", msg);
+            xSemaphoreTake(sema_MQTT_KeepAlive, portMAX_DELAY);
+            if (MQTTclient.connected()) {
+                serializeJson(doc, msg);
+                MQTTclient.publish("iboost/iboost", msg);
+                ESP_LOGI(TAG, "Published MQTT message: %s", msg);           
+            } else {
+                ESP_LOGW(TAG, "Unable to publish MQTT message: %s", msg);    
+            }
+            xSemaphoreGive(sema_MQTT_KeepAlive);
 
             //client.publish("iboost/savedYesterday", msg);
             //client.publish("iboost/savedLast7", msg);
@@ -428,6 +451,7 @@ void receivePacket(void) {
         // ESP_LOGI(TAG, "Task stats: %s", stats_buffer);
     }
 }
+
 
 /**
  * @brief Transmit a packet to the iBoost main unit to request information
@@ -489,43 +513,66 @@ void transmitPacket(void) {
     pingTimer = millis();
 }
 
+
 /**
  * @brief Attempt to connect with the MQTT broker
  * 
  */
-void connectToMQTTBroker(void) {
-    // Loop until we're connected
+void connectToMQTT(void) {
+    // Create client ID from mac address
+    String clientId = String(macAddress[0]) + String(macAddress[5]);
+    ESP_LOGI(TAG, "Connecting to MQTT as client ID: %s", clientId);
 
-    while (!client.connected()) {
-        ESP_LOGI(TAG, "Attempting MQTT connection...");
+    while (!MQTTclient.connected()) {
         // Attempt to connect
-        if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
-            ESP_LOGI(TAG, "  Connected");
-            client.setSocketTimeout(120);
-        } else {
-            ESP_LOGE(TAG, "  Failed, rc=%d - trying again in 5 seconds", client.state());
-            // Wait 5 seconds before retrying
-            delay(5000);
-        }
+        if (MQTTclient.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
+            ESP_LOGI(TAG, "  connecting to MQTT...");
+            vTaskDelay(250);
+        }      
     }
+            
+    ESP_LOGI(TAG, "Connected to MQTT");
 }
 
 /**
- * @brief Attempt to reconnect with the MQTT broker, non blocking
+ * @brief Connect to WiFi
  * 
- * @return bool True if reconnect was successful, false if not
  */
-bool reconnectToMQTTBroker(void) {
-    bool connected = false;
+void connectToWiFi(void) {
+    ESP_LOGI(TAG, "Connecting to Wi-Fi");
 
-    ESP_LOGW(TAG, "Attempting to reconnect with MQTT server...");
-    if (client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
-        ESP_LOGW(TAG, "Reconnected to MQTT server.");
-        client.setSocketTimeout(120);
-        connected = true;
-    } else {
-        ESP_LOGE(TAG, "Reconnect to MQTT server failed!");
+    while (WiFi.status() != WL_CONNECTED) {
+        WiFi.disconnect();
+        WiFi.begin(SSID, WIFI_PASSWORD);
+        ESP_LOGI(TAG, " waiting for WiFi connection");
+        vTaskDelay(4000);
     }
+    ESP_LOGI(TAG, "Connected to Wi-Fi");
+    WiFi.macAddress(macAddress);
 
-    return connected;
+    ESP_LOGI(TAG, "IP Address: %s  - MAC Address: %d.%d.%d.%d.%d.%d", 
+        WiFi.localIP().toString(), macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+
+    WiFi.onEvent(onWiFiEvent);
+}
+
+
+/**
+ * @brief Log a WiFi event
+ * 
+ * @param event Type of WiFi event that has happened
+ */
+void onWiFiEvent(WiFiEvent_t event) {
+    switch (event) {
+        case SYSTEM_EVENT_STA_CONNECTED:
+            ESP_LOGI(TAG, "Connected to access point");
+            break;
+        case SYSTEM_EVENT_STA_DISCONNECTED:
+            ESP_LOGI(TAG, "Disconnected from WiFi access point");
+            break;
+        case SYSTEM_EVENT_AP_STADISCONNECTED:
+            ESP_LOGI(TAG, "WiFi client disconnected");
+            break;
+        default: break;
+    }
 }
