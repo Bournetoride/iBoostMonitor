@@ -16,6 +16,9 @@
 #include "CC1101_RFx.h"
 
 
+// Defines
+#define PING 10000      // Ping iBoost main unit for data every 10 seconds
+
 // ESP32 Wroom 32: SCK_PIN = 18; MISO_PIN = 19; MOSI_PIN = 23; SS_PIN = 5; GDO0 = 2;
 #ifdef WROOM
     #define SS_PIN 5
@@ -43,11 +46,14 @@
 // freeRTOS specific variables
 TaskHandle_t blinkLEDTaskHandle = NULL;
 TaskHandle_t mqqtKeepAliveTaskHandle = NULL;
+TaskHandle_t receivePacketTaskHandle = NULL;
+TaskHandle_t transmitPacketTaskHandle = NULL;
 
 QueueHandle_t ledTaskQueue;
 int queueSize = 10;
 
-SemaphoreHandle_t sema_MQTT_KeepAlive;
+SemaphoreHandle_t keepAliveMQTTSemaphore;
+SemaphoreHandle_t radioSemaphore;
 
 //#define GDO0_PIN 2      // Not used
 
@@ -75,34 +81,22 @@ struct iboost {
 // Logging tag
 static const char* TAG = "iBoost";
 
-// Global variables
-uint32_t pingTimer;         // used for the periodic pings see below
-uint32_t rxTimer;  
-uint8_t txBuf[32];
-uint8_t request;
-uint8_t addressLQI, rxLQI;  // signal strength test 
-byte packet[65];            // The CC1101 library sets the biggest packet at 61
 WiFiClient wifiClient;
 byte macAddress[6];
 PubSubClient MQTTclient(MQTT_SERVER, MQTT_PORT, wifiClient);
-char msg[MSG_BUFFER_SIZE];
-
-// For MQTT messages
-JsonDocument doc;
-char JSONmessageBuffer[100];
+uint32_t rxTimer;  
 
 /* Function prototypes */
 void blinkLEDTask(void *parameter);
 void mqqtKeepAliveTask(void *parameter);
-// void reconnectToMQTTTask(void *parameter);
-// void connectToMQTTBroker(void);
-// bool reconnectToMQTTBroker(void);
+void receivePacketTask(void *parameter);
+void transmitPacketTask(void *parameter);
+///////
 void radioSetup();
-void receivePacket(void);
-void transmitPacket(void);
 void connectToWiFi(void);
 void connectToMQTT(void);
-void onWiFiEvent(WiFiEvent_t event);
+void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info);
+String connectionStatusMessage(wl_status_t wifiStatus);
 
 /**
  * @brief Set up everything. SPI, WiFi, MQTT, and CC1101
@@ -119,11 +113,12 @@ void setup() {
         setupFlag = false;
     }
 
-    // Create MQTT semaphore
-    sema_MQTT_KeepAlive = xSemaphoreCreateBinary();
-    xSemaphoreGive(sema_MQTT_KeepAlive);            // Stop keep alive when publishing
+    // Create required semaphores
+    keepAliveMQTTSemaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(keepAliveMQTTSemaphore);            // Stop keep alive when publishing
 
-    addressLQI = 255;       // set received LQI to lowest value
+    radioSemaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(radioSemaphore);
 
     iboostInfo.today = 0;
     iboostInfo.yesterday = 0;
@@ -131,6 +126,8 @@ void setup() {
     iboostInfo.last28 = 0;
     iboostInfo.total = 0;
     iboostInfo.addressValid = false;
+
+    rxTimer = 0;
 
     #ifdef WROOM
         SPI.begin();
@@ -152,23 +149,40 @@ void setup() {
        set low to start so it's off and flashes when it receives a packet */
     pinMode(LED_BUILTIN, OUTPUT);   
 
-    /* This task also creates/checks the WiFi connection */
-    xReturned = xTaskCreate( mqqtKeepAliveTask, "mqqtKeepAliveTask", 8192, NULL, 1, &mqqtKeepAliveTaskHandle);
-    if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create mqqtKeepAliveTask");
-        setupFlag = false;
-    }
-
     xReturned = xTaskCreate(blinkLEDTask, "blinkLEDTask", 1024, NULL, tskIDLE_PRIORITY, &blinkLEDTaskHandle);
     if (xReturned != pdPASS) {
         ESP_LOGE(TAG, "Failed to create blinkLEDTask");
         setupFlag = false;
     }
 
+    /* This task also creates/checks the WiFi connection */
+    xReturned = xTaskCreate( mqqtKeepAliveTask, "mqqtKeepAliveTask", 4096, NULL, 1, &mqqtKeepAliveTaskHandle);
+    if (xReturned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create mqqtKeepAliveTask");
+        setupFlag = false;
+    }
+
+    xReturned = xTaskCreate(receivePacketTask, "receivePacketTask", 20000, NULL, 3, &receivePacketTaskHandle);
+    if (xReturned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create receivePacketTask");
+        setupFlag = false;
+    }
+
+    xReturned = xTaskCreate(transmitPacketTask, "transmitPacketTask", 16384, NULL, 3, &transmitPacketTaskHandle);
+    if (xReturned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create receivePacketTask");
+        setupFlag = false;
+    }
+
     // Everything set up okay so turn (blue) LED off
     if (setupFlag) {
         digitalWrite(LED_BUILTIN, LOW);
-        ESP_LOGI(TAG, "Setup Finished");
+        //ESP_LOGI(TAG, "Setup Finished");
+
+        // Lets start getting data
+
+        radio.setRXstate();             // Set the current state to RX : listening for RF packets
+
     } else {
         ESP_LOGE(TAG, "Setup Failed!!!");
     }
@@ -179,15 +193,9 @@ void setup() {
  * 
  */
 void loop(void) {
-    receivePacket();
 
-    if(iboostInfo.addressValid) {
-        if (millis() - pingTimer > 10000) { // ping every 10sec
-            if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) { // wait between 1-2 seconds after rx to tx
-                transmitPacket();
-            }
-        }
-    }
+    // All happens in tasks
+
 }
 
 /**
@@ -229,19 +237,265 @@ void mqqtKeepAliveTask(void *parameter) {
     while(1) {
         //check for a is-connected and if the WiFi 'thinks' its connected, found checking on both is more realible than just a single check
         if ((MQTTclient.connected()) && (WiFi.status() == WL_CONNECTED))
-        {
-            xSemaphoreTake( sema_MQTT_KeepAlive, portMAX_DELAY ); // whiles MQTTlient.loop() is running no other mqtt operations should be in process
+        {   // whiles MQTTlient.loop() is running no other mqtt operations should be in process
+            xSemaphoreTake(keepAliveMQTTSemaphore, portMAX_DELAY); 
             MQTTclient.loop();
-            xSemaphoreGive( sema_MQTT_KeepAlive );
-        } else {
-            ESP_LOGI(TAG, "MQTT keep alive found MQTT status %s,  WiFi status %s", String(MQTTclient.connected()), String(WiFi.status()));
-            if (!(WiFi.status() == WL_CONNECTED)) {
+            xSemaphoreGive(keepAliveMQTTSemaphore);
+        } else {       
+            wl_status_t status = WiFi.status();
+            ESP_LOGI(TAG, "MQTT keep alive: MQTT %s,  WiFi %s", 
+                    MQTTclient.connected() ? "Connected" : "Not Connected", 
+                    connectionStatusMessage(status)
+            );
+            if (!(status == WL_CONNECTED)) {
                 connectToWiFi();
             }
 
             connectToMQTT();
         }
-        vTaskDelay(250); //task runs approx every 250 mS
+        vTaskDelay(250 / portTICK_PERIOD_MS); //task runs approx every 250 mS
+    }
+    vTaskDelete (NULL);
+}
+
+
+/**
+ * @brief Handle the receipt of a packet from the CC1101
+ * 
+ */
+void receivePacketTask(void *parameter) { 
+    byte packet[65];                // The CC1101 library sets the biggest packet at 61
+    uint8_t addressLQI = 255;       // set received LQI to lowest value
+    uint8_t rxLQI;                  // signal strength test 
+    JsonDocument doc;               // Create JSON message for sending via MQTT
+    char msg[MSG_BUFFER_SIZE];      // MQTT message
+
+    while(1) {
+        xSemaphoreTake(radioSemaphore, portMAX_DELAY);
+        byte pkt_size = radio.getPacket(packet);
+        if (pkt_size > 0 && radio.crcok()) {        // We have a valid packet with some data
+            short heating;
+            long p1, p2;
+            byte boostTime;
+            bool waterHeating, cylinderHot, batteryOk;
+            bool ledFlag = true;
+            int16_t rssi = radio.getRSSIdbm();
+
+            rxTimer = millis();
+
+            #ifdef HEXDUMP  // declared in platformio.ini
+                // log level needs to be ESP_LOG_ERROR to get something to print!!
+                ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
+            #endif
+
+            //   buddy request                            sender packet
+            if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
+                rxLQI = radio.getLQI();
+                ESP_LOGI(TAG, "Buddy/Sender frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, rxLQI);
+
+                if(rxLQI < addressLQI) { // is the signal stronger than the previous/none
+                    addressLQI = rxLQI;
+                    iboostInfo.address[0] = packet[0]; // save the address of the packet	0x1c7b; //
+                    iboostInfo.address[1] = packet[1];
+                    iboostInfo.addressValid = true;
+
+                    ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboostInfo.address[0], iboostInfo.address[1]);
+                }		
+            }
+
+            // main unit (sending info to iBoost Buddy)
+            if (packet[2] == 0x22) {    
+                ESP_LOGI(TAG, "iBoost frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, rxLQI);
+                heating = (* ( short *) &packet[16]);
+                p1 = (* ( long*) &packet[18]);
+                p2 = (* ( long*) &packet[25]); // this depends on the request
+
+                if (packet[6])
+                    waterHeating = false;
+                else
+                    waterHeating = true;
+
+                if (packet[7])
+                    cylinderHot = true;
+                else
+                    cylinderHot = false;
+
+                if (packet[12])
+                    batteryOk = false;
+                else
+                    batteryOk = true;
+
+                boostTime=packet[5]; // boost time remaining (minutes)
+
+                ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  %s: %ld Watts  P2: %ld", 
+                    heating, p1, (p1/390 < 0 ? "Exporting": "Importing"), (p1/390 < 0 ? abs(p1/390): p1/390), p2);
+
+                // Serial.print("  P3: ");
+                // Serial.print((* (signed long*) &packet[29]) );
+                // Serial.print("  P4: ");
+                // Serial.println((* (signed long*) &packet[30]) );
+
+                switch (packet[24]) {
+                    case   SAVED_TODAY:
+                        iboostInfo.today = p2;
+                        break;
+                    case   SAVED_YESTERDAY:
+                        iboostInfo.yesterday = p2;
+                        break;
+                    case   SAVED_LAST_7:
+                        iboostInfo.last7 = p2;
+                        break;
+                    case   SAVED_LAST_28:
+                        iboostInfo.last28 = p2;
+                        break;
+                    case   SAVED_TOTAL:
+                        iboostInfo.total = p2;
+                        break;
+                }
+
+                if (cylinderHot)
+                    ESP_LOGI(TAG, "Water Tank HOT");
+                else if (boostTime > 0)
+                    ESP_LOGI(TAG, "Manual Boost ON"); 
+                else if (waterHeating) {
+                    ESP_LOGI(TAG, "Heating by Solar = %d Watts", heating);
+                }
+                else {
+                    ESP_LOGI(TAG, "Water Heating OFF");
+                }
+
+                if (batteryOk)
+                    ESP_LOGI(TAG, "Sender Battery OK");
+                else
+                    ESP_LOGI(TAG, "Warning - Sender Battery LOW");
+
+                ESP_LOGI(TAG, "Today: %ld Wh   Yesterday: %ld Wh   Last 7 Days: %ld Wh   Last 28 Days: %ld Wh   Total: %ld Wh   Boost Time: %d", 
+                    iboostInfo.today, iboostInfo.yesterday, iboostInfo.last7, iboostInfo.last28, iboostInfo.total, boostTime);
+
+                // Create JSON for sending via MQTT to MQTT server
+                // How much solar we have used today to heat the hot water
+                doc["savedToday"] = iboostInfo.today;
+                
+                // Water tank status
+                if (cylinderHot) {
+                    doc["hotWater"] =  "HOT";                        
+                } else if (waterHeating) {
+                    doc["hotWater"] =  "Heating by Solar";                        
+                } else {
+                    doc["hotWater"] =  "Off";                        
+                }
+                
+                // Status of the sender battery
+                if (batteryOk) {
+                    doc["battery"] =  "OK"; 
+                } else {
+                    doc["battery"] = "LOW"; 
+                }
+                
+                xSemaphoreTake(keepAliveMQTTSemaphore, portMAX_DELAY);
+                if (MQTTclient.connected()) {
+                    serializeJson(doc, msg);
+                    MQTTclient.publish("iboost/iboost", msg);
+                    ESP_LOGI(TAG, "Published MQTT message: %s", msg);           
+                } else {
+                    ESP_LOGW(TAG, "Unable to publish message: %s to MQTT - not connected!", msg);    
+                }
+                xSemaphoreGive(keepAliveMQTTSemaphore);
+
+                //client.publish("iboost/savedYesterday", msg);
+                //client.publish("iboost/savedLast7", msg);
+                //client.publish("iboost/savedLast28", msg);
+                //client.publish("iboost/savedTotal", msg);
+            }
+
+
+            // Send message to LED task to blink the LED to show we've received a packet
+            xQueueSend(ledTaskQueue, &ledFlag, 0);
+
+            // Need to investigate how to do this in platformio - does not seem possible at the moment :-(
+            // char stats_buffer[1024];
+            // vTaskList(stats_buffer);
+            // ESP_LOGI(TAG, "Task stats: %s", stats_buffer);
+        }
+                
+        xSemaphoreGive(radioSemaphore);
+        vTaskDelay(100 / portTICK_PERIOD_MS);       // Give some time so other tasks can run/complete
+    }
+    vTaskDelete (NULL);
+}
+
+
+/**
+ * @brief Transmit a packet to the iBoost main unit to request information
+ * 
+ */
+void transmitPacketTask(void *parameter) {
+    uint8_t txBuf[32];
+    uint8_t request = 0xca;
+
+    while(1) {
+        // Should we use a flag to wait 1-2 seconds before tx after a rx instead of a timer?
+        if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) { // wait between 1-2 seconds after rx to tx
+            if(iboostInfo.addressValid) {
+                // whilst radio is transmitting no other radio operation should be in progress
+                xSemaphoreTake(radioSemaphore, portMAX_DELAY);
+
+                memset(txBuf, 0, sizeof(txBuf));
+
+                if ((request < 0xca) || (request > 0xce)) 
+                    request = 0xca;
+
+                // Payload
+                txBuf[0] = iboostInfo.address[0];
+                txBuf[1] = iboostInfo.address[1];		  
+                txBuf[2] = 0x21;
+                txBuf[3] = 0x8;
+                txBuf[4] = 0x92;
+                txBuf[5] = 0x7;
+                txBuf[8] = 0x24;
+                txBuf[10] = 0xa0;
+                txBuf[11] = 0xa0;
+                txBuf[12] = request; // request information (on this topic) from the main unit
+                txBuf[14] = 0xa0;
+                txBuf[15] = 0xa0;
+                txBuf[16] = 0xc8;
+
+                radio.strobe(CC1101_SIDLE);
+                radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
+                radio.writeBurstRegister(CC1101_TXFIFO, txBuf, 29);   // write the data to the TX FIFO
+                radio.strobe(CC1101_STX);
+                delay(5);
+                radio.strobe(CC1101_SWOR);
+                delay(5);
+                radio.strobe(CC1101_SFRX);
+                radio.strobe(CC1101_SIDLE);
+                radio.strobe(CC1101_SRX);       // Re-enable receive
+
+                switch (request) {
+                    case SAVED_TODAY:
+                        ESP_LOGI(TAG, "Sent request: Saved Today");
+                        break;
+                    case SAVED_YESTERDAY:
+                        ESP_LOGI(TAG, "Sent request: Saved Yesterday");
+                        break;
+                    case SAVED_LAST_7:
+                        ESP_LOGI(TAG, "Sent request: Saved Last 7 Days");
+                        break;
+                    case SAVED_LAST_28:
+                        ESP_LOGI(TAG, "Sent request: Saved Last 28 Days");
+                        break;
+                    case SAVED_TOTAL:
+                        ESP_LOGI(TAG, "Sent request: Saved In Total");
+                        break;
+                }
+
+                request++;
+                            
+                xSemaphoreGive(radioSemaphore);
+            }
+
+            vTaskDelay(PING / portTICK_PERIOD_MS);          // Ping iBoost unit every 10 seconds
+        }
     }
     vTaskDelete (NULL);
 }
@@ -296,221 +550,9 @@ void radioSetup() {
     radio.strobe(CC1101_SIDLE); 
     radio.strobe(CC1101_SPWD); 
 
-    radio.setRXstate();             // Set the current state to RX : listening for RF packets
+    radio.setIDLEstate();                 // Was set to receive, moved so set when all setup of program is finished
 
-    ESP_LOGI(TAG, "CC1101 set up complete, set to Rx");
-}
-
-/**
- * @brief Handle the receipt of a packet from the CC1101
- * 
- */
-void receivePacket(void) { 
-    // Receive part. if GDO0 is connected with D1 you can use it to detect incoming packets
-    //if (digitalRead(D1)) {
-    byte pkt_size = radio.getPacket(packet);
-    if (pkt_size > 0 && radio.crcok()) {        // We have a valid packet with some data
-        short heating;
-        long p1, p2;
-        char pbuf[32];
-        byte boostTime;
-        bool waterHeating,cylinderHot, batteryOk;
-        bool ledFlag = true;
-        
-        rxTimer = millis();
-        rxLQI = radio.getLQI();
-
-        ESP_LOGI(TAG, "Valid frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, radio.getRSSIdbm(), rxLQI);
-
-        #ifdef HEXDUMP  // declared in platformio.ini
-            // log level needs to be ESP_LOG_ERROR to get something to print!!
-            ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
-        #endif
-
-        //   buddy request                            sender packet
-        if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
-            if(rxLQI < addressLQI) { // is the signal stronger than the previous/none
-                addressLQI = rxLQI;
-                iboostInfo.address[0] = packet[0]; // save the address of the packet	0x1c7b; //
-                iboostInfo.address[1] = packet[1];
-                iboostInfo.addressValid = true;
-
-                ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboostInfo.address[0], iboostInfo.address[1]);
-            }		
-        }
-
-        // main unit (sending info to iBoost Buddy)
-        if (packet[2] == 0x22) {    
-            heating = (* ( short *) &packet[16]);
-            p1 = (* ( long*) &packet[18]);
-            p2 = (* ( long*) &packet[25]); // this depends on the request
-
-            if (packet[6])
-                waterHeating = false;
-            else
-                waterHeating = true;
-
-            if (packet[7])
-                cylinderHot = true;
-            else
-                cylinderHot = false;
-
-            if (packet[12])
-                batteryOk = false;
-            else
-                batteryOk = true;
-
-            boostTime=packet[5]; // boost time remaining (minutes)
-
-            ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  Import: %ld  P2: %ld", heating, p1, p1/390, p2);
-
-            // Serial.print("  P3: ");
-            // Serial.print((* (signed long*) &packet[29]) );
-            // Serial.print("  P4: ");
-            // Serial.println((* (signed long*) &packet[30]) );
-
-            switch (packet[24]) {
-                case   SAVED_TODAY:
-                    iboostInfo.today = p2;
-                    break;
-                case   SAVED_YESTERDAY:
-                    iboostInfo.yesterday = p2;
-                    break;
-                case   SAVED_LAST_7:
-                    iboostInfo.last7 = p2;
-                    break;
-                case   SAVED_LAST_28:
-                    iboostInfo.last28 = p2;
-                    break;
-                case   SAVED_TOTAL:
-                    iboostInfo.total = p2;
-                    break;
-            }
-
-            if (cylinderHot)
-                ESP_LOGI(TAG, "Water Tank HOT");
-            else if (boostTime > 0)
-                ESP_LOGI(TAG, "Manual Boost ON"); 
-            else if (waterHeating) {
-                ESP_LOGI(TAG, "Heating by Solar = %d Watts", heating);
-            }
-            else {
-                ESP_LOGI(TAG, "Water Heating OFF");
-            }
-
-            if (batteryOk)
-                ESP_LOGI(TAG, "Sender Battery OK");
-            else
-                ESP_LOGI(TAG, "Warning - Sender Battery LOW");
-
-            ESP_LOGI(TAG, "Today: %ld Wh   Yesterday: %ld Wh   Last 7 Days: %ld Wh   Last 28 Days: %ld Wh   Total: %ld Wh   Boost Time: %d", 
-                iboostInfo.today, iboostInfo.yesterday, iboostInfo.last7, iboostInfo.last28, iboostInfo.total, boostTime);
-
-            // Create JSON for sending via MQTT to MQTT server
-            // How much solar we have used today to heat the hot water
-            doc["savedToday"] = iboostInfo.today;
-            
-            // Water tank status
-            if (cylinderHot) {
-                doc["hotWater"] =  "HOT";                        
-            } else if (waterHeating) {
-                doc["hotWater"] =  "Heating by Solar";                        
-            } else {
-                doc["hotWater"] =  "Off";                        
-            }
-            
-            // Status of the sender battery
-            if (batteryOk) {
-                doc["battery"] =  "OK"; 
-            } else {
-                doc["battery"] = "LOW"; 
-            }
-            
-            xSemaphoreTake(sema_MQTT_KeepAlive, portMAX_DELAY);
-            if (MQTTclient.connected()) {
-                serializeJson(doc, msg);
-                MQTTclient.publish("iboost/iboost", msg);
-                ESP_LOGI(TAG, "Published MQTT message: %s", msg);           
-            } else {
-                ESP_LOGW(TAG, "Unable to publish MQTT message: %s", msg);    
-            }
-            xSemaphoreGive(sema_MQTT_KeepAlive);
-
-            //client.publish("iboost/savedYesterday", msg);
-            //client.publish("iboost/savedLast7", msg);
-            //client.publish("iboost/savedLast28", msg);
-            //client.publish("iboost/savedTotal", msg);
-        }
-
-        // Send message to LED task to blink the LED to show we've received a packet
-        xQueueSend(ledTaskQueue, &ledFlag, 0);
-
-        // Need to investigate how to do this in platformio
-        // char stats_buffer[1024];
-        // vTaskList(stats_buffer);
-        // ESP_LOGI(TAG, "Task stats: %s", stats_buffer);
-    }
-}
-
-
-/**
- * @brief Transmit a packet to the iBoost main unit to request information
- * 
- */
-void transmitPacket(void) {
-    memset(txBuf, 0, sizeof(txBuf));
-
-    if ((request < 0xca) || (request > 0xce)) 
-        request = 0xca;
-
-    // Payload
-    txBuf[0] = iboostInfo.address[0];
-    txBuf[1] = iboostInfo.address[1];		  
-    txBuf[2] = 0x21;
-    txBuf[3] = 0x8;
-    txBuf[4] = 0x92;
-    txBuf[5] = 0x7;
-    txBuf[8] = 0x24;
-    txBuf[10] = 0xa0;
-    txBuf[11] = 0xa0;
-    txBuf[12] = request; // request information (on this topic) from the main unit
-    txBuf[14] = 0xa0;
-    txBuf[15] = 0xa0;
-    txBuf[16] = 0xc8;
-
-    radio.strobe(CC1101_SIDLE);
-    radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
-    radio.writeBurstRegister(CC1101_TXFIFO, txBuf, 29);   // write the data to the TX FIFO
-    radio.strobe(CC1101_STX);
-    delay(5);
-    radio.strobe(CC1101_SWOR);
-    delay(5);
-    radio.strobe(CC1101_SFRX);
-    radio.strobe(CC1101_SIDLE);
-    radio.strobe(CC1101_SRX);
-
-    switch (request) {
-        case   SAVED_TODAY:
-            ESP_LOGI(TAG, "Sent request: Saved Today");
-            break;
-        case   SAVED_YESTERDAY:
-            ESP_LOGI(TAG, "Sent request: Saved Yesterday");
-            break;
-        case   SAVED_LAST_7:
-            ESP_LOGI(TAG, "Sent request: Saved Last 7 Days");
-            break;
-        case   SAVED_LAST_28:
-            ESP_LOGI(TAG, "Sent request: Saved Last 28 Days");
-            break;
-        case   SAVED_TOTAL:
-            ESP_LOGI(TAG, "Sent request: Saved In Total");
-            break;
-    }
-
-    request++;
-
-    // Update timer for pinging main unit for information, currently every 10 seconds
-    pingTimer = millis();
+    ESP_LOGI(TAG, "CC1101 set up complete, radio set to idle state");
 }
 
 
@@ -526,7 +568,7 @@ void connectToMQTT(void) {
     while (!MQTTclient.connected()) {
         // Attempt to connect
         if (MQTTclient.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
-            ESP_LOGI(TAG, "  connecting to MQTT...");
+            ESP_LOGI(TAG, "   connecting to MQTT...");
             vTaskDelay(250);
         }      
     }
@@ -544,7 +586,7 @@ void connectToWiFi(void) {
     while (WiFi.status() != WL_CONNECTED) {
         WiFi.disconnect();
         WiFi.begin(SSID, WIFI_PASSWORD);
-        ESP_LOGI(TAG, " waiting for WiFi connection");
+        ESP_LOGI(TAG, "   waiting for WiFi connection");
         vTaskDelay(4000);
     }
     ESP_LOGI(TAG, "Connected to Wi-Fi");
@@ -552,27 +594,43 @@ void connectToWiFi(void) {
 
     ESP_LOGI(TAG, "IP Address: %s  - MAC Address: %d.%d.%d.%d.%d.%d", 
         WiFi.localIP().toString(), macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
-
-    WiFi.onEvent(onWiFiEvent);
 }
 
 
 /**
- * @brief Log a WiFi event
+ * @brief Convert connectionStatusMessage
  * 
- * @param event Type of WiFi event that has happened
+ * @param String Status of WiFi connection
  */
-void onWiFiEvent(WiFiEvent_t event) {
-    switch (event) {
-        case SYSTEM_EVENT_STA_CONNECTED:
-            ESP_LOGI(TAG, "Connected to access point");
+String connectionStatusMessage(wl_status_t wifiStatus) {
+    String status;
+
+    switch (wifiStatus) {
+        case WL_IDLE_STATUS:
+            status = "Idle";        
             break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            ESP_LOGI(TAG, "Disconnected from WiFi access point");
+        case WL_NO_SSID_AVAIL:
+            status = "No SSID Available";        
             break;
-        case SYSTEM_EVENT_AP_STADISCONNECTED:
-            ESP_LOGI(TAG, "WiFi client disconnected");
+        case WL_SCAN_COMPLETED:
+            status = "Scan Completed";        
             break;
-        default: break;
+        case WL_CONNECTED:
+            status = "Connected";        
+            break;
+        case WL_CONNECT_FAILED:
+            status = "Connection Failed";        
+            break;
+        case WL_CONNECTION_LOST:
+            status = "Connection Lost";        
+            break;
+        case WL_DISCONNECTED:
+            status = "Disconnected";        
+            break;               
+        default:
+            status = "Unknown";
+            break;
     }
+
+    return status;
 }
