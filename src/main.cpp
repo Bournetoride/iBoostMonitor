@@ -207,7 +207,7 @@ void setup() {
         setupFlag = false;
     }
 
-    xReturned = xTaskCreate(blinkWS2812Task, "blinkWS2812Task", 1024, NULL, tskIDLE_PRIORITY, &blinkWS2812TaskHandle);
+    xReturned = xTaskCreate(blinkWS2812Task, "blinkWS2812Task", 2048, NULL, tskIDLE_PRIORITY, &blinkWS2812TaskHandle);
     if (xReturned != pdPASS) {
         ESP_LOGE(TAG, "Failed to create blinkWS2812Task");
         setupFlag = false;
@@ -265,7 +265,7 @@ void blinkLEDTask(void *parameter) {
     bool flag = false;
 
     while(1) {
-        xQueueReceive(ledTaskQueue, &flag, 0);
+        xQueueReceive(ledTaskQueue, &flag, portMAX_DELAY);
         if (flag) {
             digitalWrite(LED_BUILTIN, HIGH);        // Turn LED on
             vTaskDelay(200 / portTICK_PERIOD_MS);   // Wait 200ms
@@ -286,7 +286,7 @@ void blinkWS2812Task(void *parameter) {
     ledMessage led = BLANK;
 
     while(1) {
-        xQueueReceive(ledQueue, &led, 0);
+        xQueueReceive(ledQueue, &led, portMAX_DELAY);
         switch (led) {
             case TRANSMIT:
                 ws2812b.setPixelColor(TRANSMIT, pixelColours.green);
