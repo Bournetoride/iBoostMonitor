@@ -3,6 +3,7 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
+#include <Adafruit_NeoPixel.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -45,11 +46,15 @@
 
 // freeRTOS specific variables
 TaskHandle_t blinkLEDTaskHandle = NULL;
+TaskHandle_t blinkWS2812TaskHandle = NULL;
+
 TaskHandle_t mqqtKeepAliveTaskHandle = NULL;
 TaskHandle_t receivePacketTaskHandle = NULL;
 TaskHandle_t transmitPacketTaskHandle = NULL;
 
 QueueHandle_t ledTaskQueue;
+QueueHandle_t ledQueue;
+QueueHandle_t transmitTaskQueue;
 int queueSize = 10;
 
 SemaphoreHandle_t keepAliveMQTTSemaphore;
@@ -58,6 +63,12 @@ SemaphoreHandle_t radioSemaphore;
 //#define GDO0_PIN 2      // Not used
 
 #define MSG_BUFFER_SIZE	(100)
+#define PIN_WS2812B 13           // Output pin on ESP32 that controls the addressable LEDs
+#define NUM_PIXELS 4            // Number of LEDs (pixels) we can control
+#define GLOW 150
+
+// Set up library to control LEDs
+Adafruit_NeoPixel ws2812b(NUM_PIXELS, PIN_WS2812B, NEO_GRB + NEO_KHZ800);
 
 // codes for the various requests and responses
 enum { 
@@ -66,6 +77,16 @@ enum {
     SAVED_LAST_7 = 0xCC,
     SAVED_LAST_28 = 0xCD,
     SAVED_TOTAL = 0xCE
+};
+
+// LEDs that get lit depending on message we want to convey
+enum ledMessage{ 
+    TRANSMIT,
+    RECEIVE,
+    ERROR,
+    CLEAR,
+    CLEAR_ERROR,
+    BLANK
 };
 
 struct iboost {
@@ -78,19 +99,31 @@ struct iboost {
     bool addressValid;
 } iboostInfo;
 
+// LED colours
+typedef struct {
+    uint32_t red = ws2812b.Color(GLOW*255/255, GLOW*0/255, GLOW*0/255);
+    uint32_t green = ws2812b.Color(GLOW*0/255, GLOW*255/255, GLOW*0/255);
+    uint32_t blue = ws2812b.Color(GLOW*0/255, GLOW*0/255, GLOW*255/255);
+    uint32_t violet = ws2812b.Color(GLOW*246/255, GLOW*0/255, GLOW*255/255);
+    uint32_t yellow = ws2812b.Color(GLOW*255/255, GLOW*255/255, GLOW*0/255);
+    uint32_t clear = ws2812b.Color(0, 0, 0);
+} colours_t;
+
 // Logging tag
 static const char* TAG = "iBoost";
 
 WiFiClient wifiClient;
 byte macAddress[6];
 PubSubClient MQTTclient(MQTT_SERVER, MQTT_PORT, wifiClient);
-uint32_t rxTimer;  
+colours_t pixelColours;
+
 
 /* Function prototypes */
 void blinkLEDTask(void *parameter);
 void mqqtKeepAliveTask(void *parameter);
 void receivePacketTask(void *parameter);
 void transmitPacketTask(void *parameter);
+void blinkWS2812Task(void *parameter);
 ///////
 void radioSetup();
 void connectToWiFi(void);
@@ -106,10 +139,31 @@ void setup() {
     bool setupFlag = true;      // Flag for confirming setup was sucessfull or not
     BaseType_t xReturned;
 
-    // Create queue for sending messages to the LED task
+    // Initialise WS2812B strip object (REQUIRED)    
+    ws2812b.begin();
+    ws2812b.show();
+    ws2812b.clear();
+    for (int pixel = 0; pixel < NUM_PIXELS; pixel++) {          // for each pixel
+        ws2812b.setPixelColor(pixel, pixelColours.violet);      // it only takes effect when pixels.show() is called
+    }
+    ws2812b.show();  // update to the WS2812B Led Strip
+
+    // Create queue for sending messages to the LED task and transmit packet task
     ledTaskQueue = xQueueCreate(queueSize, sizeof(bool));
     if (ledTaskQueue == NULL) {
         ESP_LOGE(TAG, "Error creating ledTaskQueue");
+        setupFlag = false;
+    }
+
+    ledQueue = xQueueCreate(queueSize, sizeof(ledMessage));
+    if (ledQueue == NULL) {
+        ESP_LOGE(TAG, "Error creating ledQueue");
+        setupFlag = false;
+    }
+
+    transmitTaskQueue = xQueueCreate(queueSize, sizeof(bool));
+    if (transmitTaskQueue == NULL) {
+        ESP_LOGE(TAG, "Error creating transmitTaskQueue");
         setupFlag = false;
     }
 
@@ -126,8 +180,6 @@ void setup() {
     iboostInfo.last28 = 0;
     iboostInfo.total = 0;
     iboostInfo.addressValid = false;
-
-    rxTimer = 0;
 
     #ifdef WROOM
         SPI.begin();
@@ -155,6 +207,12 @@ void setup() {
         setupFlag = false;
     }
 
+    xReturned = xTaskCreate(blinkWS2812Task, "blinkWS2812Task", 1024, NULL, tskIDLE_PRIORITY, &blinkWS2812TaskHandle);
+    if (xReturned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create blinkWS2812Task");
+        setupFlag = false;
+    }
+
     /* This task also creates/checks the WiFi connection */
     xReturned = xTaskCreate( mqqtKeepAliveTask, "mqqtKeepAliveTask", 4096, NULL, 1, &mqqtKeepAliveTaskHandle);
     if (xReturned != pdPASS) {
@@ -177,9 +235,9 @@ void setup() {
     // Everything set up okay so turn (blue) LED off
     if (setupFlag) {
         digitalWrite(LED_BUILTIN, LOW);
-        //ESP_LOGI(TAG, "Setup Finished");
 
-        // Lets start getting data
+        ws2812b.clear();
+        ws2812b.show();
 
         radio.setRXstate();             // Set the current state to RX : listening for RF packets
 
@@ -220,6 +278,50 @@ void blinkLEDTask(void *parameter) {
 
 
 /**
+ * @brief Blink an LED on the LED strip dependiing on request.
+ * 
+ * @param parameter Parameters passed to task on creation.
+ */
+void blinkWS2812Task(void *parameter) {
+    ledMessage led = BLANK;
+
+    while(1) {
+        xQueueReceive(ledQueue, &led, 0);
+        switch (led) {
+            case TRANSMIT:
+                ws2812b.setPixelColor(TRANSMIT, pixelColours.green);
+                ws2812b.show();
+                vTaskDelay(150 / portTICK_PERIOD_MS);
+                ws2812b.setPixelColor(TRANSMIT, pixelColours.clear);
+                ws2812b.show();
+                break;
+            case RECEIVE:
+                ws2812b.setPixelColor(RECEIVE, pixelColours.blue);
+                ws2812b.show();
+                vTaskDelay(150 / portTICK_PERIOD_MS);
+                ws2812b.setPixelColor(RECEIVE, pixelColours.clear);
+                ws2812b.show();
+                break;
+            case ERROR:
+                ws2812b.setPixelColor(ERROR, pixelColours.red);
+                ws2812b.show();
+                break;
+            case CLEAR_ERROR:
+                ws2812b.setPixelColor(ERROR, pixelColours.clear);
+                ws2812b.show();
+                break;
+            case CLEAR:
+                ws2812b.clear();
+                ws2812b.show();
+                break;
+        }
+        led = BLANK;
+    }
+    vTaskDelete(NULL);
+}
+
+
+/**
  * @brief Task to keep connection to MQTT broker alive.  Makes the initial
  * connection to the MQTT broker and keeps the connection open along with 
  * the WiFi connection.
@@ -232,6 +334,8 @@ void blinkLEDTask(void *parameter) {
  * @param parameter Parameters passed to task on creation.
  */
 void mqqtKeepAliveTask(void *parameter) {
+    ledMessage led = BLANK;
+
     // setting must be set before a mqtt connection is made
     MQTTclient.setKeepAlive( 90 ); // setting keep alive to 90 seconds makes for a very reliable connection.
     while(1) {
@@ -242,6 +346,8 @@ void mqqtKeepAliveTask(void *parameter) {
             MQTTclient.loop();
             xSemaphoreGive(keepAliveMQTTSemaphore);
         } else {       
+            led = ERROR;
+            xQueueSend(ledQueue, &led, 0);
             wl_status_t status = WiFi.status();
             ESP_LOGI(TAG, "MQTT keep alive: MQTT %s,  WiFi %s", 
                     MQTTclient.connected() ? "Connected" : "Not Connected", 
@@ -252,6 +358,8 @@ void mqqtKeepAliveTask(void *parameter) {
             }
 
             connectToMQTT();
+            led = CLEAR_ERROR;
+            xQueueSend(ledQueue, &led, 0);
         }
         vTaskDelay(250 / portTICK_PERIOD_MS); //task runs approx every 250 mS
     }
@@ -269,6 +377,8 @@ void receivePacketTask(void *parameter) {
     uint8_t rxLQI;                  // signal strength test 
     JsonDocument doc;               // Create JSON message for sending via MQTT
     char msg[MSG_BUFFER_SIZE];      // MQTT message
+    ledMessage led = RECEIVE;
+    bool flag = true;
 
     while(1) {
         xSemaphoreTake(radioSemaphore, portMAX_DELAY);
@@ -278,11 +388,10 @@ void receivePacketTask(void *parameter) {
             long p1, p2;
             byte boostTime;
             bool waterHeating, cylinderHot, batteryOk;
-            bool ledFlag = true;
             int16_t rssi = radio.getRSSIdbm();
 
-            rxTimer = millis();
 
+            //xQueueSend(transmitTaskQueue, &flag, 0);
             #ifdef HEXDUMP  // declared in platformio.ini
                 // log level needs to be ESP_LOG_ERROR to get something to print!!
                 ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
@@ -410,7 +519,8 @@ void receivePacketTask(void *parameter) {
 
 
             // Send message to LED task to blink the LED to show we've received a packet
-            xQueueSend(ledTaskQueue, &ledFlag, 0);
+            xQueueSend(ledTaskQueue, &flag, 0);
+            xQueueSend(ledQueue, &led, 0);
 
             // Need to investigate how to do this in platformio - does not seem possible at the moment :-(
             // char stats_buffer[1024];
@@ -432,10 +542,17 @@ void receivePacketTask(void *parameter) {
 void transmitPacketTask(void *parameter) {
     uint8_t txBuf[32];
     uint8_t request = 0xca;
+    bool flag = false;
+    ledMessage led = TRANSMIT;
 
     while(1) {
-        // Should we use a flag to wait 1-2 seconds before tx after a rx instead of a timer?
-        if ( (millis() - rxTimer) > 1000 &&  (millis() - rxTimer) < 2000) { // wait between 1-2 seconds after rx to tx
+        // xQueueReceive(transmitTaskQueue, &flag, 0);
+        // if (flag) {
+            // Wait a second after the recieve before transmitting a packet. Not sure why we need to 
+            // wait as we're waiting for 10 seconds between each transmit. It is what the example I 
+            // worked from did, need to investigate if it matters or not - shouldn't now that we're 
+            // using tasks, queues, and semaphores to manage everything.
+            //vTaskDelay(1000 / portTICK_PERIOD_MS);  
             if(iboostInfo.addressValid) {
                 // whilst radio is transmitting no other radio operation should be in progress
                 xSemaphoreTake(radioSemaphore, portMAX_DELAY);
@@ -492,10 +609,14 @@ void transmitPacketTask(void *parameter) {
                 request++;
                             
                 xSemaphoreGive(radioSemaphore);
+
+                xQueueSend(ledQueue, &led, 0);
             }
 
-            vTaskDelay(PING / portTICK_PERIOD_MS);          // Ping iBoost unit every 10 seconds
-        }
+            flag = false;
+
+            vTaskDelay(PING / portTICK_PERIOD_MS);          // Ping iBoost unit every n seconds
+        // }
     }
     vTaskDelete (NULL);
 }
