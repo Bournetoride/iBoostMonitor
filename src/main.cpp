@@ -81,7 +81,7 @@ enum {
 
 // LEDs that get lit depending on message we want to convey
 enum ledMessage{ 
-    TRANSMIT,
+    TX_FAKE_BUDDY_REQUEST,
     RECEIVE,
     ERROR,
     CLEAR,
@@ -288,26 +288,28 @@ void blinkWS2812Task(void *parameter) {
     while(1) {
         xQueueReceive(ledQueue, &led, portMAX_DELAY);
         switch (led) {
-            case TRANSMIT:
-                ws2812b.setPixelColor(TRANSMIT, pixelColours.green);
+            case TX_FAKE_BUDDY_REQUEST:
+                ws2812b.setPixelColor(0, pixelColours.green);
                 ws2812b.show();
                 vTaskDelay(150 / portTICK_PERIOD_MS);
-                ws2812b.setPixelColor(TRANSMIT, pixelColours.clear);
+                ws2812b.setPixelColor(0, pixelColours.clear);
                 ws2812b.show();
                 break;
             case RECEIVE:
-                ws2812b.setPixelColor(RECEIVE, pixelColours.blue);
+                ws2812b.setPixelColor(1, pixelColours.blue);
                 ws2812b.show();
                 vTaskDelay(150 / portTICK_PERIOD_MS);
-                ws2812b.setPixelColor(RECEIVE, pixelColours.clear);
+                ws2812b.setPixelColor(1, pixelColours.clear);
                 ws2812b.show();
                 break;
             case ERROR:
-                ws2812b.setPixelColor(ERROR, pixelColours.red);
+                ws2812b.setPixelColor(2, pixelColours.red);
+                ws2812b.setPixelColor(3, pixelColours.red);
                 ws2812b.show();
                 break;
             case CLEAR_ERROR:
-                ws2812b.setPixelColor(ERROR, pixelColours.clear);
+                ws2812b.setPixelColor(2, pixelColours.clear);
+                ws2812b.setPixelColor(3, pixelColours.clear);
                 ws2812b.show();
                 break;
             case CLEAR:
@@ -543,7 +545,7 @@ void transmitPacketTask(void *parameter) {
     uint8_t txBuf[32];
     uint8_t request = 0xca;
     bool flag = false;
-    ledMessage led = TRANSMIT;
+    ledMessage led = TX_FAKE_BUDDY_REQUEST;
 
     while(1) {
         // xQueueReceive(transmitTaskQueue, &flag, 0);

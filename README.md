@@ -2,23 +2,26 @@ Currently in development.
 
 Tasks:
 - Recieve/transmit packets and extract iBoost information - Done
+- Convert to freeRTOS - Done
+- Add WS2812B LED strip to have multiple LEDs to convey messages - In progress
 - Investigate the use of an interrupt to indicate a valid packet has be received - TODO
 - Feed data to existing MQTT queue on the Raspberry Pi - Done
 - Raspberry Pi - Write information to website (and possible InfluxDb) - Website complete, InfluxDb TODO
-- Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but undecided if to use or not yet, it's a bit small. 
+- Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but to small - Done
 - Purchased this [3.5 inch SPI serial LCD module](https://www.aliexpress.us/item/1005001999296476.html) to display iBoost information and solar information currently displayed by a Lillyo TTGO. Not due to arrive until 11th March - TODO
 
 # iBoost Monitor
 
 [Marlec iBoost](https://www.marlec.co.uk/product/solar-iboost/) Monitor 
 
-This project is based on the original by [JMSwanson / ESP-Home-iBoost](https://github.com/JNSwanson/ESP-Home-iBoost) which integrates with ESPHome which I currently do not use.
+This project is based on the original by [JMSwanson / ESP-Home-iBoost](https://github.com/JNSwanson/ESP-Home-iBoost) which integrates with ESPHome which I (currently) do not use.
+
+Hardware: ESP32 Wroom 32 (AliExpress) and a CC1101 Module (eBay).
 
 This project uses an ESP32 and a [CC1101 TI radio module](https://www.ti.com/lit/ds/symlink/cc1100.pdf).  It was written using 
-VSCode and the PlatformIO plug-in. Using the PubSubClient library for MQTT connectivity and I used the same radio library as 
-JMSwanson as it works. 
-
-Currently using an ESP32 Wroom 32 and a CC1101 Module purchased from eBay.
+VSCode and the PlatformIO plug-in. Using the PubSubClient library for MQTT connectivity and the same local radio library as 
+JMSwanson as it works. Also using ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling 
+the WS2812B LED strip.
 
 ## Wiring 
 
