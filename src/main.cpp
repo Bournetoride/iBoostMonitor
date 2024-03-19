@@ -1,48 +1,20 @@
-#include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include <SPI.h>
 #include <Adafruit_NeoPixel.h>
-#include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#ifdef TTGO
-#include <TFT_eSPI.h> 
-#include "solar-panel.h"
-#endif
+#include "main.h"
 
 #include "config.h"
 #include "CC1101_RFx.h"
-
 
 // Defines
 #define PING 10000      // Ping iBoost main unit for data every 10 seconds
 
 // ESP32 Wroom 32: SCK_PIN = 18; MISO_PIN = 19; MOSI_PIN = 23; SS_PIN = 5; GDO0 = 2;
-#ifdef WROOM
-    #define SS_PIN 5
-    #define MISO_PIN 19
+#define SS_PIN 5
+#define MISO_PIN 19
 
-    CC1101 radio(SS_PIN,  MISO_PIN);
-#endif
-
-/* The Lilygo TTGO already uses VSPI for the display so we need to define 
-   HSPI: https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/14 to
-   use the additional SPI GPIO pins on the board.
-   Lilygo TTGO: SCK_PIN = 25; MISO_PIN = 27; MOSI_PIN = 26; SS_PIN = 33;
-*/
-#ifdef TTGO
-    #define SS_PIN 33
-    #define MISO_PIN 27
-    #define MOSI_PIN 26
-    #define SCK_PIN 25
-    
-    SPIClass SPITTGO(HSPI);
-
-    CC1101 radio(SS_PIN,  MISO_PIN, SPITTGO);
-#endif
+CC1101 radio(SS_PIN,  MISO_PIN);
 
 // freeRTOS specific variables
 TaskHandle_t blinkLEDTaskHandle = NULL;
@@ -51,6 +23,8 @@ TaskHandle_t blinkWS2812TaskHandle = NULL;
 TaskHandle_t mqqtKeepAliveTaskHandle = NULL;
 TaskHandle_t receivePacketTaskHandle = NULL;
 TaskHandle_t transmitPacketTaskHandle = NULL;
+
+TaskHandle_t displayTaskHandle = NULL;
 
 QueueHandle_t ledTaskQueue;
 QueueHandle_t ledQueue;
@@ -63,9 +37,9 @@ SemaphoreHandle_t radioSemaphore;
 //#define GDO0_PIN 2      // Not used
 
 #define MSG_BUFFER_SIZE	(100)
-#define PIN_WS2812B 13           // Output pin on ESP32 that controls the addressable LEDs
+#define PIN_WS2812B 3 // 13 on wroom-32d           // Output pin on ESP32 that controls the addressable LEDs
 #define NUM_PIXELS 4            // Number of LEDs (pixels) we can control
-#define GLOW 150
+#define GLOW 100
 
 // Set up library to control LEDs
 Adafruit_NeoPixel ws2812b(NUM_PIXELS, PIN_WS2812B, NEO_GRB + NEO_KHZ800);
@@ -116,6 +90,9 @@ WiFiClient wifiClient;
 byte macAddress[6];
 PubSubClient MQTTclient(MQTT_SERVER, MQTT_PORT, wifiClient);
 colours_t pixelColours;
+char dateTimeStringBuff[35];    // buffer for time and date on the display
+char timeStringBuff[10];        // buffer for time on the display
+char weatherDescription[35];    // buffer for the current weather description from OpenWeatherMap
 
 
 /* Function prototypes */
@@ -130,6 +107,7 @@ void connectToWiFi(void);
 void connectToMQTT(void);
 void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info);
 String connectionStatusMessage(wl_status_t wifiStatus);
+static void updateLocalTime(void);
 
 /**
  * @brief Set up everything. SPI, WiFi, MQTT, and CC1101
@@ -181,17 +159,7 @@ void setup() {
     iboostInfo.total = 0;
     iboostInfo.addressValid = false;
 
-    #ifdef WROOM
-        SPI.begin();
-    #endif
-
-    #ifdef TTGO
-        SPITTGO.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
-    #endif
-
-    ESP_LOGI(TAG, "Setting up WiFi, MQTT, and CC1101");
-
-    //Serial.begin(115200);
+    SPI.begin();
     ESP_LOGI(TAG, "SPI OK");
 
     // Set up the radio
@@ -232,6 +200,13 @@ void setup() {
         setupFlag = false;
     }
 
+    // Actioned in screen.cpp
+    xReturned = xTaskCreate(displayTask, "displayTask", 3072, NULL, tskIDLE_PRIORITY, &displayTaskHandle);
+    if (xReturned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create displayTask, setup failed");
+        setupFlag = false;
+    } 
+
     // Everything set up okay so turn (blue) LED off
     if (setupFlag) {
         digitalWrite(LED_BUILTIN, LOW);
@@ -264,7 +239,7 @@ void loop(void) {
 void blinkLEDTask(void *parameter) {
     bool flag = false;
 
-    while(1) {
+    for( ;; ) {
         xQueueReceive(ledTaskQueue, &flag, portMAX_DELAY);
         if (flag) {
             digitalWrite(LED_BUILTIN, HIGH);        // Turn LED on
@@ -285,7 +260,7 @@ void blinkLEDTask(void *parameter) {
 void blinkWS2812Task(void *parameter) {
     ledMessage led = BLANK;
 
-    while(1) {
+    for( ;; ) {
         xQueueReceive(ledQueue, &led, portMAX_DELAY);
         switch (led) {
             case TX_FAKE_BUDDY_REQUEST:
@@ -340,7 +315,7 @@ void mqqtKeepAliveTask(void *parameter) {
 
     // setting must be set before a mqtt connection is made
     MQTTclient.setKeepAlive( 90 ); // setting keep alive to 90 seconds makes for a very reliable connection.
-    while(1) {
+    for( ;; ) {
         //check for a is-connected and if the WiFi 'thinks' its connected, found checking on both is more realible than just a single check
         if ((MQTTclient.connected()) && (WiFi.status() == WL_CONNECTED))
         {   // whiles MQTTlient.loop() is running no other mqtt operations should be in process
@@ -360,6 +335,8 @@ void mqqtKeepAliveTask(void *parameter) {
             }
 
             connectToMQTT();
+            configTime(0, 3600, SNTP_TIME_SERVER);  // connect to ntp time server
+            updateLocalTime();                      // update the local time
             led = CLEAR_ERROR;
             xQueueSend(ledQueue, &led, 0);
         }
@@ -382,7 +359,7 @@ void receivePacketTask(void *parameter) {
     ledMessage led = RECEIVE;
     bool flag = true;
 
-    while(1) {
+    for( ;; ) {
         xSemaphoreTake(radioSemaphore, portMAX_DELAY);
         byte pkt_size = radio.getPacket(packet);
         if (pkt_size > 0 && radio.crcok()) {        // We have a valid packet with some data
@@ -392,8 +369,6 @@ void receivePacketTask(void *parameter) {
             bool waterHeating, cylinderHot, batteryOk;
             int16_t rssi = radio.getRSSIdbm();
 
-
-            //xQueueSend(transmitTaskQueue, &flag, 0);
             #ifdef HEXDUMP  // declared in platformio.ini
                 // log level needs to be ESP_LOG_ERROR to get something to print!!
                 ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
@@ -530,6 +505,8 @@ void receivePacketTask(void *parameter) {
             // ESP_LOGI(TAG, "Task stats: %s", stats_buffer);
         }
                 
+        static int s = 0;
+        
         xSemaphoreGive(radioSemaphore);
         vTaskDelay(100 / portTICK_PERIOD_MS);       // Give some time so other tasks can run/complete
     }
@@ -544,81 +521,70 @@ void receivePacketTask(void *parameter) {
 void transmitPacketTask(void *parameter) {
     uint8_t txBuf[32];
     uint8_t request = 0xca;
-    bool flag = false;
     ledMessage led = TX_FAKE_BUDDY_REQUEST;
 
-    while(1) {
-        // xQueueReceive(transmitTaskQueue, &flag, 0);
-        // if (flag) {
-            // Wait a second after the recieve before transmitting a packet. Not sure why we need to 
-            // wait as we're waiting for 10 seconds between each transmit. It is what the example I 
-            // worked from did, need to investigate if it matters or not - shouldn't now that we're 
-            // using tasks, queues, and semaphores to manage everything.
-            //vTaskDelay(1000 / portTICK_PERIOD_MS);  
-            if(iboostInfo.addressValid) {
-                // whilst radio is transmitting no other radio operation should be in progress
-                xSemaphoreTake(radioSemaphore, portMAX_DELAY);
+    for( ;; ) {
+        if(iboostInfo.addressValid) {
+            // whilst radio is transmitting no other radio operation should be in progress
+            xSemaphoreTake(radioSemaphore, portMAX_DELAY);
 
-                memset(txBuf, 0, sizeof(txBuf));
+            memset(txBuf, 0, sizeof(txBuf));
 
-                if ((request < 0xca) || (request > 0xce)) 
-                    request = 0xca;
+            if ((request < 0xca) || (request > 0xce)) 
+                request = 0xca;
 
-                // Payload
-                txBuf[0] = iboostInfo.address[0];
-                txBuf[1] = iboostInfo.address[1];		  
-                txBuf[2] = 0x21;
-                txBuf[3] = 0x8;
-                txBuf[4] = 0x92;
-                txBuf[5] = 0x7;
-                txBuf[8] = 0x24;
-                txBuf[10] = 0xa0;
-                txBuf[11] = 0xa0;
-                txBuf[12] = request; // request information (on this topic) from the main unit
-                txBuf[14] = 0xa0;
-                txBuf[15] = 0xa0;
-                txBuf[16] = 0xc8;
+            // Payload
+            txBuf[0] = iboostInfo.address[0];
+            txBuf[1] = iboostInfo.address[1];		  
+            txBuf[2] = 0x21;
+            txBuf[3] = 0x8;
+            txBuf[4] = 0x92;
+            txBuf[5] = 0x7;
+            txBuf[8] = 0x24;
+            txBuf[10] = 0xa0;
+            txBuf[11] = 0xa0;
+            txBuf[12] = request; // request information (on this topic) from the main unit
+            txBuf[14] = 0xa0;
+            txBuf[15] = 0xa0;
+            txBuf[16] = 0xc8;
 
-                radio.strobe(CC1101_SIDLE);
-                radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
-                radio.writeBurstRegister(CC1101_TXFIFO, txBuf, 29);   // write the data to the TX FIFO
-                radio.strobe(CC1101_STX);
-                delay(5);
-                radio.strobe(CC1101_SWOR);
-                delay(5);
-                radio.strobe(CC1101_SFRX);
-                radio.strobe(CC1101_SIDLE);
-                radio.strobe(CC1101_SRX);       // Re-enable receive
+            radio.strobe(CC1101_SIDLE);
+            radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
+            radio.writeBurstRegister(CC1101_TXFIFO, txBuf, 29);   // write the data to the TX FIFO
+            radio.strobe(CC1101_STX);
+            delay(5);
+            radio.strobe(CC1101_SWOR);
+            delay(5);
+            radio.strobe(CC1101_SFRX);
+            radio.strobe(CC1101_SIDLE);
+            radio.strobe(CC1101_SRX);       // Re-enable receive
 
-                switch (request) {
-                    case SAVED_TODAY:
-                        ESP_LOGI(TAG, "Sent request: Saved Today");
-                        break;
-                    case SAVED_YESTERDAY:
-                        ESP_LOGI(TAG, "Sent request: Saved Yesterday");
-                        break;
-                    case SAVED_LAST_7:
-                        ESP_LOGI(TAG, "Sent request: Saved Last 7 Days");
-                        break;
-                    case SAVED_LAST_28:
-                        ESP_LOGI(TAG, "Sent request: Saved Last 28 Days");
-                        break;
-                    case SAVED_TOTAL:
-                        ESP_LOGI(TAG, "Sent request: Saved In Total");
-                        break;
-                }
-
-                request++;
-                            
-                xSemaphoreGive(radioSemaphore);
-
-                xQueueSend(ledQueue, &led, 0);
+            switch (request) {
+                case SAVED_TODAY:
+                    ESP_LOGI(TAG, "Sent request: Saved Today");
+                    break;
+                case SAVED_YESTERDAY:
+                    ESP_LOGI(TAG, "Sent request: Saved Yesterday");
+                    break;
+                case SAVED_LAST_7:
+                    ESP_LOGI(TAG, "Sent request: Saved Last 7 Days");
+                    break;
+                case SAVED_LAST_28:
+                    ESP_LOGI(TAG, "Sent request: Saved Last 28 Days");
+                    break;
+                case SAVED_TOTAL:
+                    ESP_LOGI(TAG, "Sent request: Saved In Total");
+                    break;
             }
 
-            flag = false;
+            request++;
+                        
+            xSemaphoreGive(radioSemaphore);
 
-            vTaskDelay(PING / portTICK_PERIOD_MS);          // Ping iBoost unit every n seconds
-        // }
+            xQueueSend(ledQueue, &led, 0);
+        }
+
+        vTaskDelay(PING / portTICK_PERIOD_MS);          // Ping iBoost unit every n seconds
     }
     vTaskDelete (NULL);
 }
@@ -717,6 +683,8 @@ void connectToWiFi(void) {
 
     ESP_LOGI(TAG, "IP Address: %s  - MAC Address: %d.%d.%d.%d.%d.%d", 
         WiFi.localIP().toString(), macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+    
+    
 }
 
 
@@ -756,4 +724,16 @@ String connectionStatusMessage(wl_status_t wifiStatus) {
     }
 
     return status;
+}
+
+static void updateLocalTime(void) {
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return;
+  }
+
+  // Update buffer with current time
+  strftime(dateTimeStringBuff, sizeof(dateTimeStringBuff), "%H:%M:%S %a %b %d %Y", &timeinfo);
+  strftime(timeStringBuff, sizeof(timeStringBuff), "%H:%M:%S", &timeinfo);
 }

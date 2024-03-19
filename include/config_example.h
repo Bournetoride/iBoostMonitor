@@ -6,3 +6,4 @@
 #define MQTT_PORT 1234
 #define MQTT_USER "MQTTUSER"
 #define MQTT_USER_PASSWORD "MQTTPASSWORD"
+#define SNTP_TIME_SERVER "pool.ntp.org"
