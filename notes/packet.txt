@@ -201,3 +201,1015 @@ Heating: 0  P1: -176162  Import: -451  P2: 3120  P3: 0  P4: 0
 Water Tank HOT
 Sender Battery OK
 Today: 3412.00 Wh   Yesterday: 3120.00 Wh   Last 7 Days: 15961.00 Wh   Last 28 Days: 59949.00 Wh   Total: 1842340.00 Wh   Boost Time: 0
+
+
+// LOG OUTPUT
+[731172][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 266.0
+[731706][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[733061][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[733185][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=27
+[733185][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 598323  Importing: 1534 Watts  P2: 21701
+[733193][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[733201][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[733207][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902312 Wh   Boost Time: 0
+[733225][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[740521][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=20
+[743071][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[750586][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=5
+[753090][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[753224][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=5
+[753224][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 620177  Importing: 1590 Watts  P2: 1902313
+[753232][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[753240][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[753246][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[753264][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[760534][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=14
+[763100][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[763216][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=14
+[763216][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 632479  Importing: 1621 Watts  P2: 2583
+[763224][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[763232][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[763238][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[763256][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[770617][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=2
+[773140][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[773261][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=2
+[773261][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 594735  Importing: 1524 Watts  P2: 3388
+[773270][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[773277][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[773284][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[773301][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[780549][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=13
+[783212][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[783334][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=13
+[783334][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 596684  Importing: 1529 Watts  P2: 21701
+[783343][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[783350][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[783356][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[783374][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[790468][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 266.0
+[790603][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=4
+[791000][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[793243][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[793368][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=4
+[793368][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 624541  Importing: 1601 Watts  P2: 74012
+[793376][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[793384][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[793390][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[793408][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[800574][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=0
+[803253][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[803372][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=0
+[803372][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 636920  Importing: 1633 Watts  P2: 1902313
+[803380][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[803388][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[803394][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[803412][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[810530][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=20
+[813307][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[813435][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=20
+[813435][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 646071  Importing: 1656 Watts  P2: 2583
+[813443][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[813451][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[813457][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[813474][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[820611][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=3
+[823318][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[823393][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=3
+[823393][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 651377  Importing: 1670 Watts  P2: 3388
+[823401][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[823409][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[823415][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[823433][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[830566][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=2
+[833386][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[833506][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=2
+[833506][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 606660  Importing: 1555 Watts  P2: 21701
+[833514][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[833522][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[833528][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[833546][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[840544][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=19
+[843461][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[843585][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=19
+[843585][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 607614  Importing: 1557 Watts  P2: 74012
+[843593][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[843601][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[843607][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0     
+[843625][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[850589][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=8
+[850852][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 222.0
+[851392][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[853512][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[853636][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=8
+[853636][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 629146  Importing: 1613 Watts  P2: 1902313
+[853645][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[853652][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[853658][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[853676][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[860567][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=8
+[863589][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[870564][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=6
+[873619][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[873743][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=6
+[873743][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 602231  Importing: 1544 Watts  P2: 3388
+[873751][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[873759][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[873765][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[873783][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[880523][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=21
+[883629][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[883720][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=21
+[883720][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 648013  Importing: 1661 Watts  P2: 21701
+[883728][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[883736][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[883742][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[883760][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[890576][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=3
+[893639][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[893753][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=3
+[893753][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 649656  Importing: 1665 Watts  P2: 74012
+[893762][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[893769][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[893775][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[893793][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[900524][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=18
+[903649][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[903793][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=18
+[903793][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 650805  Importing: 1668 Watts  P2: 1902313
+[903802][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[903809][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[903815][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[903833][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[909847][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 217.0
+[910348][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[910554][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=6
+[913728][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[920554][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=3
+[923739][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[930525][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=3
+[933749][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[933892][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=3
+[933892][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 634096  Importing: 1625 Watts  P2: 21701
+[933900][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[933908][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[933914][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[933932][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[940544][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=29
+[943759][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[943829][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=29
+[943829][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 640453  Importing: 1642 Watts  P2: 74012
+[943837][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[943845][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[943851][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[943869][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[950555][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=8
+[953769][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[953927][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=8
+[953927][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 672087  Importing: 1723 Watts  P2: 1902313
+[953936][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[953943][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[953949][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[953967][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[960551][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=5
+[963779][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[963839][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=5
+[963839][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 611408  Importing: 1567 Watts  P2: 2583
+[963847][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[963855][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[963861][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[963879][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[970465][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 196.0
+[970555][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=12
+[971023][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[973789][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[980561][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=20
+[983799][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[983876][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=20
+[983876][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 649055  Importing: 1664 Watts  P2: 21701
+[983884][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[983892][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[983898][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[983915][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[990572][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=18
+[993809][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[993917][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=18
+[993917][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 640003  Importing: 1641 Watts  P2: 74012
+[993926][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[993933][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[993939][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[993957][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1000526][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=13
+[1003819][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1003893][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=13
+[1003893][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 686130  Importing: 1759 Watts  P2: 1902313
+[1003902][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1003909][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1003916][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1003934][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1010566][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=8
+[1013829][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1013971][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=8
+[1013971][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 671060  Importing: 1720 Watts  P2: 2583
+[1013979][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1013987][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1013993][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1014011][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1020532][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=17
+[1023839][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1023999][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=17
+[1023999][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 669556  Importing: 1716 Watts  P2: 3388
+[1024008][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1024015][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1024022][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1024039][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1030579][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=2
+[1030877][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 156.0
+[1031378][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1033860][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1033977][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=2
+[1033977][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 618635  Importing: 1586 Watts  P2: 21701
+[1033986][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1033993][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1034000][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1034017][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1040537][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=13
+[1043870][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1043981][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=13
+[1043981][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -21615  Exporting: 55 Watts  P2: 74012
+[1043989][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1043997][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1044003][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1044021][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1050590][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=14
+[1053927][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1054019][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=14
+[1054019][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -60795  Exporting: 155 Watts  P2: 1902313
+[1054028][I][main.cpp:468] receivePacketTask(): [iBoost] Water Heating OFF
+[1054034][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1054041][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1054058][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Off","battery":"OK"}
+[1060564][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=4
+[1063937][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1064042][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=4
+[1064042][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -54081  Exporting: 138 Watts  P2: 2583
+[1064050][I][main.cpp:468] receivePacketTask(): [iBoost] Water Heating OFF
+[1064057][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1064064][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1064081][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Off","battery":"OK"}
+[1070587][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=6
+[1073947][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1074126][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=6
+[1074126][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -24732  Exporting: 63 Watts  P2: 3388
+[1074134][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1074142][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1074148][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1074166][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1080580][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=14
+[1083957][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1084062][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=14
+[1084062][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -60038  Exporting: 153 Watts  P2: 21701
+[1084071][I][main.cpp:468] receivePacketTask(): [iBoost] Water Heating OFF
+[1084077][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1084084][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1084141][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Off","battery":"OK"}
+[1090229][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 135.0
+[1090529][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=24
+[1090730][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1093967][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1094027][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=24
+[1094027][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -26347  Exporting: 67 Watts  P2: 74012
+[1094036][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1094043][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1094049][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1094067][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1100507][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=13
+[1103977][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1104062][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=13
+[1104062][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -14026  Exporting: 35 Watts  P2: 1902313
+[1104071][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1104078][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1104085][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1104102][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1110594][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=23
+[1113987][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1114069][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=23
+[1114069][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -63178  Exporting: 161 Watts  P2: 2583
+[1114077][I][main.cpp:468] receivePacketTask(): [iBoost] Water Heating OFF
+[1114084][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1114091][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1114108][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Off","battery":"OK"}
+[1120607][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=30
+[1124029][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1124120][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=30
+[1124120][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -27433  Exporting: 70 Watts  P2: 3388
+[1124128][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1124136][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1124142][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0    
+[1124160][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1130562][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=3
+[1134039][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1134126][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=3
+[1134126][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -39388  Exporting: 100 Watts  P2: 21701
+[1134134][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1134142][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1134148][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1134166][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1140564][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=12
+[1144049][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1144153][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=12
+[1144153][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -54800  Exporting: 140 Watts  P2: 74012
+[1144162][I][main.cpp:468] receivePacketTask(): [iBoost] Water Heating OFF
+[1144168][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1144175][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1144193][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Off","battery":"OK"}
+[1150364][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 117.0
+[1150540][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=10
+[1150865][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1154059][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1154171][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=10
+[1154171][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -76315  Exporting: 195 Watts  P2: 1902313
+[1154180][I][main.cpp:468] receivePacketTask(): [iBoost] Water Heating OFF
+[1154186][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1154193][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1154211][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Off","battery":"OK"}
+[1160546][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=2
+[1164069][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1164209][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=2
+[1164209][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -44361  Exporting: 113 Watts  P2: 2583
+[1164217][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1164225][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1164231][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1164249][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1170574][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=3
+[1174079][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1174216][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=3
+[1174216][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -73846  Exporting: 189 Watts  P2: 3388
+[1174224][I][main.cpp:468] receivePacketTask(): [iBoost] Water Heating OFF
+[1174231][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1174238][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0    
+[1174255][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Off","battery":"OK"}
+[1180514][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=21
+[1184089][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1184226][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=21
+[1184226][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 191764  Importing: 491 Watts  P2: 21701
+[1184235][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1184242][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1184249][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1184266][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1190512][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=24
+[1194099][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1194228][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=24
+[1194228][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 200418  Importing: 513 Watts  P2: 74012
+[1194237][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1194244][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1194250][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1194268][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1200577][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=5
+[1204109][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1204221][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=5
+[1204221][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 208394  Importing: 534 Watts  P2: 1902313
+[1204230][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1204237][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1204244][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1204261][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1210573][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=11
+[1210873][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 99.0
+[1211374][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1214119][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1214189][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=11
+[1214189][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 222201  Importing: 569 Watts  P2: 2583
+[1214197][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1214205][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1214211][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1214229][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1220524][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=16
+[1224141][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1224244][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=16
+[1224245][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 232757  Importing: 596 Watts  P2: 3388
+[1224253][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1224260][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1224267][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1224285][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1230534][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=3
+[1234152][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1234317][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=3
+[1234317][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 221500  Importing: 567 Watts  P2: 21701
+[1234325][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1234333][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1234339][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1234357][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1240529][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=11
+[1244162][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1244300][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=11
+[1244300][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 211647  Importing: 542 Watts  P2: 74012
+[1244309][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1244316][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1244323][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1244340][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1250570][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=12
+[1254218][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1260551][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=21
+[1264229][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1264332][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-63, LQI=21
+[1264332][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 219399  Importing: 562 Watts  P2: 2583
+[1264341][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1264348][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1264354][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1264372][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1270563][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-74, LQI=3
+[1270883][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 77.0
+[1271384][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1274240][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1274322][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=3
+[1274322][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 247861  Importing: 635 Watts  P2: 3388
+[1274330][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1274338][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1274344][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1274362][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1280510][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-74, LQI=7
+[1284282][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1284390][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=7
+[1284390][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 248850  Importing: 638 Watts  P2: 21701
+[1284398][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1284406][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1284412][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1284430][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1290502][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-74, LQI=1
+[1294292][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1294367][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=1
+[1294367][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 232028  Importing: 594 Watts  P2: 74012
+[1294375][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1294383][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1294389][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0    
+[1294407][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1300507][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-74, LQI=7
+[1304302][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1304379][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=7
+[1304379][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 241984  Importing: 620 Watts  P2: 1902313
+[1304388][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1304395][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1304402][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1304419][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1310499][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-74, LQI=2
+[1314312][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1314465][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=2
+[1314465][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -31806  Exporting: 81 Watts  P2: 2583
+[1314474][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1314481][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1314488][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1314505][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1320505][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-75, LQI=10
+[1324322][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1324406][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=10
+[1324406][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -22505  Exporting: 57 Watts  P2: 3388
+[1324414][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1324422][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1324428][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1324446][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1330238][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 75.0
+[1330562][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=1
+[1330739][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1334332][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1334447][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=1
+[1334447][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 234203  Importing: 600 Watts  P2: 21701
+[1334456][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1334463][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1334469][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1334487][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1340574][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-75, LQI=4
+[1344342][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1344489][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=4
+[1344489][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 284612  Importing: 729 Watts  P2: 74012
+[1344497][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1344505][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1344511][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1344529][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1350515][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-75, LQI=7
+[1354352][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1354455][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=7
+[1354455][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 288061  Importing: 738 Watts  P2: 1902313
+[1354464][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1354471][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1354478][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1354495][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1360575][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-74, LQI=2
+[1364363][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1364436][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=2
+[1364436][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 286308  Importing: 734 Watts  P2: 2583
+[1364445][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1364452][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1364459][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1364476][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1370573][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-75, LQI=13
+[1374373][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1374481][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-63, LQI=13
+[1374481][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 274484  Importing: 703 Watts  P2: 3388
+[1374489][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1374497][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1374503][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1374521][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1380495][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=8
+[1384383][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1384440][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=8
+[1384440][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 272477  Importing: 698 Watts  P2: 21701
+[1384449][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1384456][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1384462][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1384480][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1390549][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=16
+[1390714][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 37.0
+[1391215][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1394393][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1394530][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=16
+[1394530][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 251188  Importing: 644 Watts  P2: 74012
+[1394539][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1394546][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1394553][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1394570][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1400527][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=14
+[1404403][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1404511][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=14
+[1404511][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 315453  Importing: 808 Watts  P2: 1902313
+[1404520][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1404527][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1404534][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1404552][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1410567][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=2
+[1414477][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1420565][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-82, LQI=8
+[1423788][I][screen.cpp:434] touch(): [LCD] Stop screen saver
+[1424488][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1424577][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-64, LQI=8
+[1424577][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 283097  Importing: 725 Watts  P2: 3388
+[1424585][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1424593][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1424599][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1424617][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1430503][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=16
+[1434498][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1434591][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=16
+[1434591][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 283065  Importing: 725 Watts  P2: 21701
+[1434600][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1434607][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1434614][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1434631][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1440574][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=7
+[1444539][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1444661][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=7
+[1444661][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -1249  Exporting: 3 Watts  P2: 74012
+[1444669][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1444677][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1444683][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1444701][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1450346][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 36.0
+[1450609][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=8
+[1450868][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1454594][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1454728][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=8
+[1454728][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 381  Importing: 0 Watts  P2: 1902313
+[1454736][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1454744][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1454750][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1454768][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1460599][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=3
+[1464605][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1464702][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=3
+[1464702][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 14110  Importing: 36 Watts  P2: 2583
+[1464710][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1464718][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1464724][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1464741][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1470504][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=21
+[1474615][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1474733][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=21
+[1474733][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -676  Exporting: 1 Watts  P2: 3388
+[1474741][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1474748][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1474755][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1474772][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1480580][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=8
+[1484641][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1484767][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=8
+[1484767][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 6002  Importing: 15 Watts  P2: 21701
+[1484775][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1484783][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1484789][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1484806][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1490488][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=19
+[1494651][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1494756][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=19
+[1494756][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -4072  Exporting: 10 Watts  P2: 74012
+[1494764][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1494772][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1494778][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1494796][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1500495][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=20
+[1504661][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1504733][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=20
+[1504733][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 8852  Importing: 22 Watts  P2: 1902313
+[1504741][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1504749][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1504755][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1504773][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1510518][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=21
+[1510644][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 36.0
+[1511178][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1514671][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1514772][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=21
+[1514772][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -2162  Exporting: 5 Watts  P2: 2583
+[1514780][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1514788][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1514794][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1514811][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1520616][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=5
+[1524721][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1524845][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=5
+[1524845][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -28051  Exporting: 71 Watts  P2: 3388
+[1524853][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1524861][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1524867][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1524885][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1530528][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=13
+[1534732][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1534854][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=13
+[1534854][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -22938  Exporting: 58 Watts  P2: 21701
+[1534862][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1534870][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1534876][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1534894][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1540556][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=3
+[1544776][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1544902][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=3
+[1544902][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 9543  Importing: 24 Watts  P2: 74012
+[1544910][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1544918][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1544924][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1544942][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1550605][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-81, LQI=12
+[1554812][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1554939][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=12
+[1554940][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -17057  Exporting: 43 Watts  P2: 1902313
+[1554948][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1554956][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1554962][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1554980][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1560502][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=21
+[1564822][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1564895][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=21
+[1564895][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -5827  Exporting: 14 Watts  P2: 2583
+[1564903][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1564911][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1564917][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1564935][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1570486][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=19
+[1571007][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 36.0
+[1571535][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1574870][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1574990][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=19
+[1574990][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -12797  Exporting: 32 Watts  P2: 3388
+[1574999][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1575006][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1575012][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1575030][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1580498][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=15
+[1584881][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1584993][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=15
+[1584994][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 10260  Importing: 26 Watts  P2: 21701
+[1585002][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1585009][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1585016][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1585034][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1590594][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=5
+[1594891][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1595011][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=5
+[1595011][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -33225  Exporting: 85 Watts  P2: 74012
+[1595020][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1595027][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1595033][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0    
+[1595051][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1600596][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=5
+[1604948][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1605072][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=5
+[1605072][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 7199  Importing: 18 Watts  P2: 1902313
+[1605081][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1605088][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1605094][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1605112][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1610539][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=15
+[1614959][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1615056][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-63, LQI=15
+[1615056][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -16530  Exporting: 42 Watts  P2: 2583
+[1615064][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1615072][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1615078][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1615096][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1620601][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=1
+[1624992][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1625115][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=1
+[1625115][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 12979  Importing: 33 Watts  P2: 3388
+[1625123][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1625131][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1625137][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1625155][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1630024][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 40.0
+[1630562][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=8
+[1630564][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1635002][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1635079][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=8
+[1635079][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 9834  Importing: 25 Watts  P2: 21701
+[1635087][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1635094][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1635101][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1635118][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1640515][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=19
+[1645030][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1645150][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=19
+[1645150][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 34463  Importing: 88 Watts  P2: 74012
+[1645158][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1645166][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1645172][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1645190][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1650570][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=3
+[1655072][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1655198][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=3
+[1655198][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -14315  Exporting: 36 Watts  P2: 1902313
+[1655207][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1655214][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1655221][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1655238][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1660583][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=7
+[1665082][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1665203][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=7
+[1665203][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 12405  Importing: 31 Watts  P2: 2583
+[1665211][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1665218][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1665225][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1665243][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1670583][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-80, LQI=5
+[1675092][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1675205][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=5
+[1675205][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 15991  Importing: 41 Watts  P2: 3388
+[1675213][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1675221][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1675227][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1675245][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1680511][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=25
+[1685163][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1685285][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=25
+[1685285][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 31392  Importing: 80 Watts  P2: 21701
+[1685293][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1685301][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1685307][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1685325][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1690457][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 35.0
+[1690596][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=5
+[1690991][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1695235][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1695357][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-64, LQI=5
+[1695357][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 18170  Importing: 46 Watts  P2: 74012
+[1695365][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1695373][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1695379][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1695397][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1700558][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=3
+[1705246][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1705333][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-63, LQI=3
+[1705333][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -11703  Exporting: 30 Watts  P2: 1902313
+[1705341][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1705349][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1705355][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1705373][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1710508][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=14
+[1715284][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1715402][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=14
+[1715402][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 16076  Importing: 41 Watts  P2: 2583
+[1715410][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1715418][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1715424][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1715442][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1720599][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=7
+[1725360][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1725483][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=7
+[1725483][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 15416  Importing: 39 Watts  P2: 3388
+[1725492][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1725499][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1725506][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1725523][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1730605][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=2
+[1735392][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1735512][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-63, LQI=2
+[1735512][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -16315  Exporting: 41 Watts  P2: 21701
+[1735520][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1735528][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1735534][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1735552][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1740561][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=5
+[1745429][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1745557][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=5
+[1745557][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 15066  Importing: 38 Watts  P2: 74012
+[1745565][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1745573][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1745579][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1745597][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1750610][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=4
+[1750871][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 35.0
+[1751402][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1755439][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1755516][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=4
+[1755516][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 7323  Importing: 18 Watts  P2: 1902313
+[1755524][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1755532][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1755538][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1755556][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1760569][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=4
+[1765490][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1765618][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=4
+[1765618][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -14050  Exporting: 36 Watts  P2: 2583
+[1765627][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1765634][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1765641][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1765659][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1770503][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-83, LQI=23
+[1775522][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1775646][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=23
+[1775646][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 2870  Importing: 7 Watts  P2: 3388
+[1775654][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1775662][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1775668][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1775686][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1780554][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-81, LQI=11
+[1785578][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1785702][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=11
+[1785702][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -25363  Exporting: 65 Watts  P2: 21701
+[1785711][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1785718][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1785724][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1785742][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1790580][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-83, LQI=28
+[1795589][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1795701][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=28
+[1795701][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 5374  Importing: 13 Watts  P2: 74012
+[1795709][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1795717][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1795723][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0    
+[1795742][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1800599][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-81, LQI=14
+[1805652][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1810499][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-83, LQI=23
+[1811031][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 35.0
+[1811570][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1815663][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1815779][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=23
+[1815779][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 16006  Importing: 41 Watts  P2: 2583
+[1815787][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1815795][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1815801][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1815819][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1820564][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-82, LQI=10
+[1825711][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1825834][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=10
+[1825834][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 49099  Importing: 125 Watts  P2: 3388
+[1825843][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1825850][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1825857][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1825875][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1830604][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=6
+[1835722][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1835801][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=6
+[1835801][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 23320  Importing: 59 Watts  P2: 21701
+[1835809][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1835817][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1835823][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1835841][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1840599][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-83, LQI=8
+[1845745][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1845875][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=8
+[1845875][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 17101  Importing: 43 Watts  P2: 74012
+[1845883][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1845891][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1845897][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1845915][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1850559][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-86, LQI=14
+[1855755][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1855834][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=14
+[1855834][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -13926  Exporting: 35 Watts  P2: 1902313
+[1855843][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1855850][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1855857][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1855874][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1860600][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-83, LQI=23
+[1865765][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1865873][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=23
+[1865873][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 5797  Importing: 14 Watts  P2: 2583
+[1865882][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1865889][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1865896][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1865913][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1870364][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 35.0
+[1870498][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-83, LQI=44
+[1870891][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1875783][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1875905][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=44
+[1875905][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 9618  Importing: 24 Watts  P2: 3388
+[1875914][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1875921][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1875928][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1875946][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1880562][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-82, LQI=2
+[1885838][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1885962][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=2
+[1885962][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -3579  Exporting: 9 Watts  P2: 21701
+[1885970][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1885978][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1885984][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1886002][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1890602][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-82, LQI=7
+[1895871][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1900500][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-82, LQI=18
+[1905917][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1906041][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-58, LQI=18
+[1906041][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -7223  Exporting: 18 Watts  P2: 1902313
+[1906050][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1906057][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1906064][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1906081][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1910535][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-80, LQI=18
+[1915963][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1916085][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-60, LQI=18
+[1916085][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 1033  Importing: 2 Watts  P2: 2583
+[1916093][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1916100][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1916107][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1916124][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1920593][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-80, LQI=6
+[1926027][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1926147][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-59, LQI=6
+[1926147][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 6905  Importing: 17 Watts  P2: 3388
+[1926155][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1926162][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1926169][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1926187][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1930481][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=16
+[1930615][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 35.0
+[1931144][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1936058][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1936180][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-63, LQI=16
+[1936180][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -20922  Exporting: 53 Watts  P2: 21701
+[1936188][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1936196][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1936202][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1936220][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1940568][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=5
+[1946089][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[1946212][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=5
+[1946212][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 892  Importing: 2 Watts  P2: 74012
+[1946221][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1946228][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1946235][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1946252][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1950604][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-79, LQI=2
+[1956163][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[1960606][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=14
+[1966174][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[1966291][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=14
+[1966291][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -8106  Exporting: 20 Watts  P2: 2583
+[1966300][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1966307][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1966314][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1966332][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1970496][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-82, LQI=19
+[1976184][I][main.cpp:580] transmitPacketTask(): [iBoost] Sent request: Saved Yesterday
+[1976299][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=19
+[1976299][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -11191  Exporting: 28 Watts  P2: 3388
+[1976307][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1976315][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1976321][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1976339][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1980588][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=8
+[1986243][I][main.cpp:583] transmitPacketTask(): [iBoost] Sent request: Saved Last 7 Days
+[1986365][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=8
+[1986365][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -4848  Exporting: 12 Watts  P2: 21701
+[1986374][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[1986381][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[1986388][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0
+[1986405][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[1990497][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=26
+[1991160][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvnow, message: 35.0
+[1991688][I][main.cpp:786] mqttCallback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
+[1996322][I][main.cpp:586] transmitPacketTask(): [iBoost] Sent request: Saved Last 28 Days
+[2000557][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-76, LQI=4
+[2006341][I][main.cpp:589] transmitPacketTask(): [iBoost] Sent request: Saved In Total
+[2006465][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-62, LQI=4
+[2006465][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: -17374  Exporting: 44 Watts  P2: 1902313
+[2006474][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[2006505][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}                           me: 0
+[2010593][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-77, LQI=3
+[2016416][I][main.cpp:577] transmitPacketTask(): [iBoost] Sent request: Saved Today
+[2016540][I][main.cpp:399] receivePacketTask(): [iBoost] iBoost frame received: length=37, RSSI=-61, LQI=3
+[2016540][I][main.cpp:428] receivePacketTask(): [iBoost] Heating: 0 Watts  P1: 4166  Importing: 10 Watts  P2: 2583
+[2016548][I][main.cpp:465] receivePacketTask(): [iBoost] Heating by Solar = 0 Watts
+[2016556][I][main.cpp:472] receivePacketTask(): [iBoost] Sender Battery OK
+[2016562][I][main.cpp:477] receivePacketTask(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902313 Wh   Boost Time: 0                                                                                                                                                                       me: 0
+[2016580][I][main.cpp:503] receivePacketTask(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
+[2020496][I][main.cpp:385] receivePacketTask(): [iBoost] Buddy/Sender frame received: length=44, RSSI=-78, LQI=17

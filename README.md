@@ -23,6 +23,9 @@ VSCode and the PlatformIO plug-in. Using the PubSubClient library for MQTT conne
 JMSwanson as it works. Also using ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling 
 the WS2812B LED strip.
 
+## Features
+- Thread-safe [MQTT client](https://github.com/cyijun/ESP32MQTTClient).
+
 ## Wiring 
 
 ![Wiring](./images/iBoostMonitor.png)
