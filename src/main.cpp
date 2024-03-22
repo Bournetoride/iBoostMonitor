@@ -14,6 +14,8 @@
 #define SS_PIN 5
 #define MISO_PIN 19
 
+#define MAGIC_NUMER 360 // value used to conert iBoost value to watts
+
 CC1101 radio(SS_PIN,  MISO_PIN);
 
 // freeRTOS specific variables
@@ -29,6 +31,8 @@ TaskHandle_t displayTaskHandle = NULL;
 QueueHandle_t ledTaskQueue;
 QueueHandle_t ws2812Queue;
 QueueHandle_t transmitTaskQueue;
+QueueHandle_t displayQueue;
+
 int queueSize = 10;
 
 SemaphoreHandle_t keepAliveMQTTSemaphore;
@@ -133,6 +137,19 @@ void setup() {
     buf_handle = xRingbufferCreate(1028, RINGBUF_TYPE_NOSPLIT);
     if (buf_handle == NULL) {
         ESP_LOGE(TAG, "Failed to create ring buffer");
+        setupFlag = false;
+    }
+
+    // Create queue for sending messages to the display task
+    displayQueue = xQueueCreate(queueSize, sizeof(struct solar));
+    if (displayQueue == NULL) {
+        ESP_LOGE(TAG, "Error creating displayQueue");
+        strcpy(tx_item, "Error creating displayQueue");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
+
         setupFlag = false;
     }
 
@@ -315,7 +332,7 @@ void blinkLEDTask(void *parameter) {
     bool flag = false;
 
     for( ;; ) {
-        xQueueReceive(ledTaskQueue, &flag, portMAX_DELAY);
+        xQueueReceive(ledTaskQueue, &flag, (TickType_t)portMAX_DELAY);
         if (flag) {
             digitalWrite(LED_BUILTIN, HIGH);        // Turn LED on
             vTaskDelay(200 / portTICK_PERIOD_MS);   // Wait 200ms
@@ -336,7 +353,7 @@ void ws2812bTask(void *parameter) {
     ledMessage led = BLANK;
 
     for( ;; ) {
-        xQueueReceive(ws2812Queue, &led, portMAX_DELAY);
+        xQueueReceive(ws2812Queue, &led, (TickType_t)portMAX_DELAY);
         switch (led) {
             case TX_FAKE_BUDDY_REQUEST:
                 ws2812b.setPixelColor(0, pixelColours.green);
@@ -448,6 +465,7 @@ void receivePacketTask(void *parameter) {
     char msg[MSG_BUFFER_SIZE];      // MQTT message
     ledMessage led = RECEIVE;
     bool flag = true;
+    struct solar solarInfo;
 
     for( ;; ) {
         xSemaphoreTake(radioSemaphore, portMAX_DELAY);
@@ -495,6 +513,11 @@ void receivePacketTask(void *parameter) {
                     if (heating > 0) {  // more than 0 watts are being used
                         setWaterTankFlag(true);
                         setWTNow((int) heating);
+
+                        solarInfo.event = SL_WT_NOW;
+                        solarInfo.value = heating;
+                        solarInfo.info = IB_NONE;
+                        xQueueSend(displayQueue, &solarInfo, 0);
                     } else {
                         setWaterTankFlag(false);
                     }
@@ -615,6 +638,7 @@ void receivePacketTask(void *parameter) {
 
         xSemaphoreGive(radioSemaphore);
         vTaskDelay(100 / portTICK_PERIOD_MS);       // Give some time so other tasks can run/complete
+        // TODO - can we increase this delay or just use one task for tx and rx - no reason why not
     }
     vTaskDelete (NULL);
 }
@@ -842,7 +866,8 @@ void connectToWiFi(void) {
     ESP_LOGI(TAG, "Connected to Wi-Fi");
     //updateLog("Connected to Wi-Fi");
 
-    strcpy(tx_item, "Connected to WiFi");
+    strcpy(tx_item, "Connected to WiFi: ");
+    strcat(tx_item, WiFi.localIP().toString().c_str());
     res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
     if (res != pdTRUE) {
         ESP_LOGE(TAG, "Failed to send Ringbuffer item");

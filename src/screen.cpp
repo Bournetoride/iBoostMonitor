@@ -208,7 +208,7 @@ typedef struct {
 // Initialise struct and set all flags to false, all other values will default to 0 in C99
 solar_t volatile solar = {.solarFlag = false, .waterTankFlag = false, .importFlag = false, .exportFlag = false,
                             .updatePVNow = false, .updatePVToday = false, .updateGrid = false, .updateWTNow = false, 
-                            .updateWTToday = false, .senderBatteryStatus = BATTERY_OK, .waterTankStatus = OFF};
+                            .updateWTToday = false, .senderBatteryStatus = IB_BATTERY_OK, .waterTankStatus = IB_WT_OFF};
 //
 
 // Drawing related
@@ -232,6 +232,7 @@ static void matrix(void);
 static void touch(void);
 static void startScreenSaver(void);
 static void drawString(int x, int y, String text, alignment align);
+static void displayQueueReceive(void);
 
 
 static uint32_t inactiveRunTime = -99999;  // inactivity run time timer
@@ -249,6 +250,7 @@ void displayTask(void *parameter) {
     uint32_t matrixRunTime = -99999;  // time for next update
     uint8_t updateMatrix = 200;        // update matrix screen saver every 150ms
     uint32_t inactive = 1000 * 60 * 15;  // inactivity of 15 minutes then start screen saver
+    uint8_t one_second = 0;          // one second counter
 
     char *item = NULL;
     size_t item_size;
@@ -418,12 +420,8 @@ void displayTask(void *parameter) {
 
         touch();    // has the touch screen been pressed, check each loop or can we add a wait time?
 
-        // 1 second timer for clock on screen
-        if (update) {
-            // update flag
-            portENTER_CRITICAL(&myMux);
-            update = false;
-            portEXIT_CRITICAL(&myMux);
+        if (millis() - one_second >= 1000) {  // update time every second
+            one_second = millis();
 
             updateLocalTime();
             if (!screenSaverActive)
@@ -441,13 +439,11 @@ void displayTask(void *parameter) {
             updateLogging = true;
             //portEXIT_CRITICAL(&myMux);
 
-            //Print item
-            // for (int i = 0; i < item_size; i++) {
-            //     printf("%c", item[i]);
-            // }
             //Return Item
             vRingbufferReturnItem(buf_handle, (void *)item);
         } 
+
+        displayQueueReceive();
 
         vTaskDelay(30 / portTICK_PERIOD_MS);
     }
@@ -553,6 +549,51 @@ static void touch(void) {
     if (key[0].justPressed()) {
         key[0].press(false);
         vTaskDelay(10 / portTICK_PERIOD_MS); // debounce
+    }
+}
+
+static void displayQueueReceive(void) {
+    struct solar solarInfo;
+    float value;
+    ib_info_t info;
+
+    // Receive information from other tasks to display on the screen
+    if (xQueueReceive(displayQueue, &solarInfo, (TickType_t)0) == pdPASS) {
+        ESP_LOGI(TAGS, "displayQ Event: %d, value: %f, info: %d", solarInfo.event, solarInfo.value, solarInfo.info);
+        
+        switch (solarInfo.event) {
+            case SL_EXPORT:     // Export to grid
+                value = solarInfo.value;  // PV amount being exported to grid 
+                break;
+
+            case SL_IMPORT:     // Import from grid
+                value = solarInfo.value;  // Amount of electricity being imported
+                break;
+
+            case SL_NOW:        // Solar PV now
+                value = solarInfo.value;  // PV now
+                break;
+
+            case SL_TODAY:      // Solar PV today
+                value = solarInfo.value;  // PV today
+                break;
+
+            case SL_WT_NOW:     // Solar water tank PV now
+                value = solarInfo.value;
+                break;
+            
+            case SL_WT_TODAY:   // Solar water tank PV today
+                value = solarInfo.value;
+                break;
+
+            case SL_BATTERY:    // CT battery status (LOW/OK)
+                info = solarInfo.info;
+                break;
+
+            case SL_WT_STATUS:  // Off, Heating by solar, Hot
+                info = solarInfo.info;
+                break;
+        }
     }
 }
 
@@ -898,7 +939,7 @@ void updateLocalTime(void) {
   }
 
   // Update buffer with current time
-  strftime(dateTimeStringBuff, sizeof(dateTimeStringBuff), "%H:%M:%S %a %b %d %Y", &timeinfo);
+  //strftime(dateTimeStringBuff, sizeof(dateTimeStringBuff), "%H:%M:%S %a %b %d %Y", &timeinfo);
   strftime(timeStringBuff, sizeof(timeStringBuff), "%H:%M:%S", &timeinfo);
 }
 
