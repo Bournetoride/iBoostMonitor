@@ -37,7 +37,8 @@ assert failed: xQueueGenericSend queue.c:832 (pxQueue->pcHead != ((void *)0) || 
 */
 #include "main.h"
 #include "TFT_eSPI.h"
-#include "ESP32MQTTClient.h"
+//#include "ESP32MQTTClient.h"
+#include "my_ringbuf.h"
 
 /*
     CLOG_ENABLE Needs to be defined before cLog.h is included.  
@@ -247,9 +248,15 @@ void displayTask(void *parameter) {
     uint8_t updateAnimation = 50;        // update every 40ms
     uint32_t matrixRunTime = -99999;  // time for next update
     uint8_t updateMatrix = 200;        // update matrix screen saver every 150ms
-    uint32_t inactive = 1000 * 60 * 1;  // inactivity of 15 minutes then start screen saver
+    uint32_t inactive = 1000 * 60 * 15;  // inactivity of 15 minutes then start screen saver
 
+    char *item = NULL;
+    size_t item_size;
+    char tx_item[50];
+    UBaseType_t res = pdFALSE;
 
+        
+    memset(tx_item, '\0', sizeof(tx_item));
 
     // Set all chip selects high to astatic void bus contention during initialisation of each peripheral
     digitalWrite(TOUCH_CS, HIGH);   // ********** TFT_eSPI touch **********
@@ -381,7 +388,7 @@ void displayTask(void *parameter) {
                 logSprite.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
                 logSprite.setTextFont(0);
 
-                portENTER_CRITICAL(&myMux);
+                //portENTER_CRITICAL(&myMux);
                 for (int i = 0, y = 3; i < myLog1.numEntries; i++, y+=10) {
                     logSprite.setCursor(5, y);
                     logSprite.print(myLog1.get(i));
@@ -390,7 +397,7 @@ void displayTask(void *parameter) {
                 logSprite.pushSprite(211, 246);
 
                 updateLogging = false;
-                portEXIT_CRITICAL(&myMux);
+                //portEXIT_CRITICAL(&myMux);
             }
 
             if (millis() - animationRunTime >= updateAnimation) {  // time has elapsed, update display
@@ -399,7 +406,12 @@ void displayTask(void *parameter) {
             }
 
             if (millis() >= inactiveRunTime + inactive) {       // We've been inactive for 'n' minutes, start screensaver
-                updateLog("No activity, start screen saver");
+//                updateLog("No activity, start screen saver");
+                strcpy(tx_item, "No activity, start screen saver");
+                res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+                if (res != pdTRUE) {
+                    ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
+                } 
                 startScreenSaver();
             }
         }
@@ -417,6 +429,25 @@ void displayTask(void *parameter) {
             if (!screenSaverActive)
                 showMessage(timeStringBuff, 5, 250, 1, 2);
         }
+
+        //Receive an item from no-split ring buffer
+        item = (char *)xRingbufferReceive(buf_handle, &item_size, pdMS_TO_TICKS(0));
+        if (item != NULL) {
+            ESP_LOGI(TAGS, "Retrieved item from ringbuffer");
+
+            //portENTER_CRITICAL(&myMux);    
+            // Add time to message then add to CLOG
+            CLOG(myLog1.add(), "## %s", item);
+            updateLogging = true;
+            //portEXIT_CRITICAL(&myMux);
+
+            //Print item
+            // for (int i = 0; i < item_size; i++) {
+            //     printf("%c", item[i]);
+            // }
+            //Return Item
+            vRingbufferReturnItem(buf_handle, (void *)item);
+        } 
 
         vTaskDelay(30 / portTICK_PERIOD_MS);
     }
@@ -497,14 +528,25 @@ static void touch(void) {
         key[0].press(false);
         if (!screenSaverActive) {
             ESP_LOGI(TAGS, "Screen saver started by user");
-            updateLog("Screen saver started by user");
+            // updateLog("Screen saver started by user");
+            char tx_item[] = "Screen saver started by user";
+            UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+            if (res != pdTRUE) {
+                ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
+            } 
+            
             startScreenSaver();
         } else if (screenSaverActive) {
             ESP_LOGI(TAGS, "Stop screen saver");
             screenSaverActive = false;
             inactiveRunTime = millis();     // reset inactivity timer to now
             initialiseScreen();
-            updateLog("Screen saver stopped by user");
+            //updateLog("Screen saver stopped by user");
+            char tx_item[] = "Screen saver stopped by user";
+            UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+            if (res != pdTRUE) {
+                ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
+            } 
         }
     }
 
@@ -686,37 +728,37 @@ static void showMessage(String msg, int x, int y, int textSize, int font) {
     tft.print(msg);
 }
 
-/**
- * @brief add item to clog
- * 
- */
-void updateLog(const char *msg) {
-    portENTER_CRITICAL(&myMux);
+// /**
+//  * @brief add item to clog
+//  * 
+//  */
+// void updateLog(const char *msg) {
+//     portENTER_CRITICAL(&myMux);
     
-    // Add time to message then add to CLOG
-    CLOG(myLog1.add(), "%s %s", timeStringBuff, msg);
+//     // Add time to message then add to CLOG
+//     CLOG(myLog1.add(), "%s %s", timeStringBuff, msg);
     
-    updateLogging = true;
-    portEXIT_CRITICAL(&myMux);
-}
+//     updateLogging = true;
+//     portEXIT_CRITICAL(&myMux);
+// }
 
-void printLogging(void) {
-    int y = 3; // top of log area
+// void printLogging(void) {
+//     int y = 3; // top of log area
 
-    logSprite.fillSprite(TFT_BACKGROUND);
-    logSprite.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
-    logSprite.setTextFont(0);
-    for (uint8_t i = 0; i < myLog1.numEntries; i++, y+=10) {
-        logSprite.setCursor(5, y);
-        logSprite.print(myLog1.get(i));
-    }
+//     logSprite.fillSprite(TFT_BACKGROUND);
+//     logSprite.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
+//     logSprite.setTextFont(0);
+//     for (uint8_t i = 0; i < myLog1.numEntries; i++, y+=10) {
+//         logSprite.setCursor(5, y);
+//         logSprite.print(myLog1.get(i));
+//     }
 
-    logSprite.pushSprite(211, 246);
-    portENTER_CRITICAL(&myMux);
-    updateLogging = true;
-    portEXIT_CRITICAL(&myMux);
+//     logSprite.pushSprite(211, 246);
+//     portENTER_CRITICAL(&myMux);
+//     updateLogging = true;
+//     portEXIT_CRITICAL(&myMux);
 
-}
+// }
 
 /**
  * @brief Draw a house where xy is the bottom left of the house
@@ -882,7 +924,13 @@ void setGridImportFlag(bool setting) {
         solar.importFlag = setting;
         if (solar.importFlag) {           // can't import and export at the same time
             solar.exportFlag = false;
-            updateLog("Importing from the grid");
+            
+            // updateLog("Importing from the grid");
+            char tx_item[] = "Importing from the grid";
+            UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+            if (res != pdTRUE) {
+                ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
+            } 
         }
     }
 }
@@ -898,7 +946,12 @@ void setGridExportFlag(bool setting) {
         solar.exportFlag = setting;
         if (solar.exportFlag) {           // can't import and export at the same time
             solar.importFlag = false;
-            updateLog("Exporting to the grid");
+//            updateLog("Exporting to the grid");
+            char tx_item[] = "Exporting to the grid";
+            UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+            if (res != pdTRUE) {
+                ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
+            }
         }
     }
 }

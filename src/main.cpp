@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 #include <Adafruit_NeoPixel.h>
 #include "main.h"
-
+#include "my_ringbuf.h"
 #include "config.h"
 #include "CC1101_RFx.h"
 
@@ -18,7 +18,7 @@ CC1101 radio(SS_PIN,  MISO_PIN);
 
 // freeRTOS specific variables
 TaskHandle_t blinkLEDTaskHandle = NULL;
-TaskHandle_t blinkWS2812TaskHandle = NULL;
+TaskHandle_t ws2812bTaskHandle = NULL;
 
 TaskHandle_t mqqtKeepAliveTaskHandle = NULL;
 TaskHandle_t receivePacketTaskHandle = NULL;
@@ -27,12 +27,14 @@ TaskHandle_t transmitPacketTaskHandle = NULL;
 TaskHandle_t displayTaskHandle = NULL;
 
 QueueHandle_t ledTaskQueue;
-QueueHandle_t ledQueue;
+QueueHandle_t ws2812Queue;
 QueueHandle_t transmitTaskQueue;
 int queueSize = 10;
 
 SemaphoreHandle_t keepAliveMQTTSemaphore;
 SemaphoreHandle_t radioSemaphore;
+
+RingbufHandle_t buf_handle;
 
 //#define GDO0_PIN 2      // Not used
 
@@ -99,7 +101,7 @@ void blinkLEDTask(void *parameter);
 void mqqtKeepAliveTask(void *parameter);
 void receivePacketTask(void *parameter);
 void transmitPacketTask(void *parameter);
-void blinkWS2812Task(void *parameter);
+void ws2812bTask(void *parameter);
 ///////
 void radioSetup();
 void connectToWiFi(void);
@@ -115,6 +117,8 @@ static void mqttCallback(char* topic, byte* message, unsigned int length);
 void setup() {
     bool setupFlag = true;      // Flag for confirming setup was sucessfull or not
     BaseType_t xReturned;
+    UBaseType_t res = pdFALSE;
+    char tx_item[50];
 
     // Initialise WS2812B strip object (REQUIRED)    
     ws2812b.begin();
@@ -125,25 +129,49 @@ void setup() {
     }
     ws2812b.show();  // update to the WS2812B Led Strip
 
+    //Create ring buffer
+    buf_handle = xRingbufferCreate(1028, RINGBUF_TYPE_NOSPLIT);
+    if (buf_handle == NULL) {
+        ESP_LOGE(TAG, "Failed to create ring buffer");
+        setupFlag = false;
+    }
+
     // Create queue for sending messages to the LED task and transmit packet task
     ledTaskQueue = xQueueCreate(queueSize, sizeof(bool));  // internal led
     if (ledTaskQueue == NULL) {
         ESP_LOGE(TAG, "Error creating ledTaskQueue");
-        updateLog("Error creating ledTaskQueue");
+        // updateLog("Error creating ledTaskQueue");
+        strcpy(tx_item, "Error creating ledTaskQueue");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
+
         setupFlag = false;
     }
 
-    ledQueue = xQueueCreate(queueSize, sizeof(ledMessage));  // led strip
-    if (ledQueue == NULL) {
-        ESP_LOGE(TAG, "Error creating ledQueue");
-        updateLog("Error creating ledQueue");
+    ws2812Queue = xQueueCreate(queueSize, sizeof(ledMessage));  // led strip
+    if (ws2812Queue == NULL) {
+        ESP_LOGE(TAG, "Error creating ws2812Queue");
+        // updateLog("Error creating ws2812Queue");
+        strcpy(tx_item, "Error creating ws2812Queue");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
+
         setupFlag = false;
     }
 
     transmitTaskQueue = xQueueCreate(queueSize, sizeof(bool));
     if (transmitTaskQueue == NULL) {
         ESP_LOGE(TAG, "Error creating transmitTaskQueue");
-        updateLog("Error creating transmitTaskQueue");
+        // updateLog("Error creating transmitTaskQueue");
+        strcpy(tx_item, "Error creating transmitTaskQueue");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
         setupFlag = false;
     }
 
@@ -163,7 +191,13 @@ void setup() {
 
     SPI.begin();
     ESP_LOGI(TAG, "SPI OK");
-    updateLog("SPI Ok");
+    strcpy(tx_item, "SPI Ok");
+    res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+    if (res != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+    }
+
+    // updateLog("SPI Ok");
     // Set up the radio
     radioSetup();
     
@@ -171,17 +205,28 @@ void setup() {
        set low to start so it's off and flashes when it receives a packet */
     pinMode(LED_BUILTIN, OUTPUT);   
 
+    // Internal blue LED on ESP32 board
     xReturned = xTaskCreate(blinkLEDTask, "blinkLEDTask", 1024, NULL, tskIDLE_PRIORITY, &blinkLEDTaskHandle);
     if (xReturned != pdPASS) {
         ESP_LOGE(TAG, "Failed to create blinkLEDTask");
-        updateLog("Failed to create blinkLEDTask");
+        // updateLog("Failed to create blinkLEDTask");
+        strcpy(tx_item, "Error creating blinkLEDTask");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
         setupFlag = false;
     }
 
-    xReturned = xTaskCreate(blinkWS2812Task, "blinkWS2812Task", 2048, NULL, tskIDLE_PRIORITY, &blinkWS2812TaskHandle);
+    xReturned = xTaskCreate(ws2812bTask, "ws2812bTask", 2048, NULL, tskIDLE_PRIORITY, &ws2812bTaskHandle);
     if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create blinkWS2812Task");
-        updateLog("Failed to create blinkWS2812Task");
+        ESP_LOGE(TAG, "Failed to create ws2812bTask");
+        // updateLog("Failed to create ws2812bTask");
+        strcpy(tx_item, "Error creating ws2812bTask");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
         setupFlag = false;
     }
 
@@ -189,21 +234,36 @@ void setup() {
     xReturned = xTaskCreate( mqqtKeepAliveTask, "mqqtKeepAliveTask", 4096, NULL, 1, &mqqtKeepAliveTaskHandle);
     if (xReturned != pdPASS) {
         ESP_LOGE(TAG, "Failed to create mqqtKeepAliveTask");
-        updateLog("Failed to create mqqtKeepAliveTask");
+        // updateLog("Failed to create mqqtKeepAliveTask");
+        strcpy(tx_item, "Error creating mqttKeepAliveTask");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
         setupFlag = false;
     }
 
     xReturned = xTaskCreate(receivePacketTask, "receivePacketTask", 4096, NULL, 3, &receivePacketTaskHandle);
     if (xReturned != pdPASS) {
         ESP_LOGE(TAG, "Failed to create receivePacketTask");
-        updateLog("Failed to create receivePacketTask");
+        // updateLog("Failed to create receivePacketTask");
+        strcpy(tx_item, "Error creating receivePackeTask");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
         setupFlag = false;
     }
 
     xReturned = xTaskCreate(transmitPacketTask, "transmitPacketTask", 4096, NULL, 3, &transmitPacketTaskHandle);
     if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create receivePacketTask");
-        updateLog("Failed to create receivePacketTask");
+        ESP_LOGE(TAG, "Failed to create transmitPacketTask");
+        // updateLog("Failed to create transmitPacketTask");
+        strcpy(tx_item, "Error creating transmitPacketTask");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
         setupFlag = false;
     }
 
@@ -211,7 +271,7 @@ void setup() {
     xReturned = xTaskCreate(displayTask, "displayTask", 3072, NULL, tskIDLE_PRIORITY, &displayTaskHandle);
     if (xReturned != pdPASS) {
         ESP_LOGE(TAG, "Failed to create displayTask, setup failed");
-        updateLog("Failed to create displayTask");
+        // No point send a log item as there isn't any display task to action it!!
         setupFlag = false;
     } 
 
@@ -222,11 +282,18 @@ void setup() {
         ws2812b.clear();
         ws2812b.show();
 
-        radio.setRXstate();             // Set the current state to RX : listening for RF packets
+        //xRingbufferPrintInfo(buf_handle);
 
+        radio.setRXstate();             // Set the current state to RX : listening for RF packets
     } else {
         ESP_LOGE(TAG, "Setup Failed!!!");
-        updateLog("Setup Failed!!!");    }
+        // updateLog("Setup Failed!!!");    
+        strcpy(tx_item, "Setup Failed!!!");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
+    }
 }
 
 /**
@@ -265,11 +332,11 @@ void blinkLEDTask(void *parameter) {
  * 
  * @param parameter Parameters passed to task on creation.
  */
-void blinkWS2812Task(void *parameter) {
+void ws2812bTask(void *parameter) {
     ledMessage led = BLANK;
 
     for( ;; ) {
-        xQueueReceive(ledQueue, &led, portMAX_DELAY);
+        xQueueReceive(ws2812Queue, &led, portMAX_DELAY);
         switch (led) {
             case TX_FAKE_BUDDY_REQUEST:
                 ws2812b.setPixelColor(0, pixelColours.green);
@@ -334,7 +401,7 @@ void mqqtKeepAliveTask(void *parameter) {
             xSemaphoreGive(keepAliveMQTTSemaphore);
         } else {       
             led = ERROR;
-            xQueueSend(ledQueue, &led, 0);
+            xQueueSend(ws2812Queue, &led, 0);
             wl_status_t status = WiFi.status();
             ESP_LOGI(TAG, "MQTT keep alive: MQTT %s,  WiFi %s", 
                     MQTTclient.connected() ? "Connected" : "Not Connected", 
@@ -350,8 +417,16 @@ void mqqtKeepAliveTask(void *parameter) {
             updateLocalTime();                      // update the local time
     
             led = CLEAR_ERROR;
-            updateLog("Set up complete");
-            xQueueSend(ledQueue, &led, 0);
+            char tx_item[] = "Set up complete";
+            UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+            if (res != pdTRUE) {
+                ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+            } else {
+                ESP_LOGI(TAG, "Item sent to Ringbuffer");
+            }
+
+            //updateLog("Set up complete");
+            xQueueSend(ws2812Queue, &led, 0);
         }
         vTaskDelay(500 / portTICK_PERIOD_MS); //task runs approx every 500 mS
 
@@ -440,15 +515,15 @@ void receivePacketTask(void *parameter) {
                 boostTime=packet[5]; // boost time remaining (minutes)
 
                 ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  %s: %ld Watts  P2: %ld", 
-                    heating, p1, (p1/390 < 0 ? "Exporting": "Importing"), (p1/390 < 0 ? abs(p1/390): p1/390), p2);
+                    heating, p1, (p1/370 < 0 ? "Exporting": "Importing"), (p1/370 < 0 ? abs(p1/370): p1/370), p2); // was 390
 
                 // See if we're importing or exporting electricity
-                if (p1/390 < 0) {   // exporting
+                if (p1/377 < 0) {   // exporting
                     setGridExportFlag(true);
-                    setExportNow((int) abs(p1/390));
-                } else if (p1/390 > 0){            // importing
+                    setExportNow((int) abs(p1/370));
+                } else if (p1/370 > 0){            // importing
                     setGridImportFlag(true);
-                    setImportNow((int) p1/390);
+                    setImportNow((int) p1/370);
                 }
                 
                 // Serial.print("  P3: ");
@@ -533,7 +608,7 @@ void receivePacketTask(void *parameter) {
 
             // Send message to LED task to blink the LED to show we've received a packet
             xQueueSend(ledTaskQueue, &flag, 0); // internal led
-            xQueueSend(ledQueue, &led, 0); // led strip
+            xQueueSend(ws2812Queue, &led, 0); // led strip
 
             // ESP_LOGI(TAG, "## Receive Task Stack Left: %d", uxTaskGetStackHighWaterMark(NULL));
          }   
@@ -612,7 +687,7 @@ void transmitPacketTask(void *parameter) {
                         
             xSemaphoreGive(radioSemaphore);
 
-            xQueueSend(ledQueue, &led, 0);
+            xQueueSend(ws2812Queue, &led, 0);
                         
             // ESP_LOGI(TAG, "## Transmit Task Stack Left: %d", uxTaskGetStackHighWaterMark(NULL));
         }
@@ -675,7 +750,13 @@ void radioSetup() {
     radio.setIDLEstate();                 // Was set to receive, moved so set when all setup of program is finished
 
     ESP_LOGI(TAG, "CC1101 set up complete, radio set to idle state");
-    updateLog("CC1101 set up complete");
+    char tx_item[] = "C1101 set up complete";
+    UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+    if (res != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+    }
+
+    //updateLog("CC1101 set up complete");
 }
 
 
@@ -717,7 +798,14 @@ void connectToMQTT(void) {
     MQTTclient.setCallback(mqttCallback);
 
     ESP_LOGI(TAG, "Connected to MQTT");
-    updateLog("Connected to MQTT");
+
+    char tx_item[] = "Connected to MQTT";
+    UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+    if (res != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+    }
+
+    //updateLog("Connected to MQTT");
 }
 
 /**
@@ -726,18 +814,41 @@ void connectToMQTT(void) {
  */
 void connectToWiFi(void) {
     String tempString = "IP Address: ";
+    char tx_item[50];
+    UBaseType_t res = pdFALSE;
 
-    ESP_LOGI(TAG, "Connecting to Wi-Fi");
+    memset(tx_item, '\0', sizeof(tx_item));
+
+    ESP_LOGI(TAG, "Connecting to WiFi");
+    strcpy(tx_item, "Connecting to WiFi");
+    res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+    if (res != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+    }
 
     while (WiFi.status() != WL_CONNECTED) {
         WiFi.disconnect();
         WiFi.begin(SSID, WIFI_PASSWORD);
         ESP_LOGI(TAG, "   waiting for WiFi connection");
-        updateLog("Waiting for WiFi connection");
+        //updateLog("Waiting for WiFi connection");
+        strcpy(tx_item, "Waiting for WiFi connection");
+        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        if (res != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+        }
+
         vTaskDelay(4000);
     }
     ESP_LOGI(TAG, "Connected to Wi-Fi");
-    updateLog("Connected to Wi-Fi");
+    //updateLog("Connected to Wi-Fi");
+
+    strcpy(tx_item, "Connected to WiFi");
+    res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+    if (res != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+    } else {
+        ESP_LOGI(TAG, "Item sent to Ringbuffer");
+    }
 
     WiFi.macAddress(macAddress);
     ESP_LOGI(TAG, "IP Address: %s  - MAC Address: %d.%d.%d.%d.%d.%d", 
@@ -782,8 +893,6 @@ String connectionStatusMessage(wl_status_t wifiStatus) {
 
     return status;
 }
-
-
 
 /**
  * @brief MQTT Callback function

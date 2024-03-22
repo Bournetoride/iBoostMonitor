@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "freertos/ringbuf.h"
 
 // Sender battery values
 enum iBoostBattery {
