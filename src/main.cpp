@@ -141,7 +141,7 @@ void setup() {
     }
 
     // Create queue for sending messages to the display task
-    g_display_queue = xQueueCreate(queueSize, sizeof(struct solar));
+    g_display_queue = xQueueCreate(queueSize, sizeof(electricity_event_t));
     if (g_display_queue == NULL) {
         ESP_LOGE(TAG, "Error creating g_display_queue");
         strcpy(tx_item, "Error creating g_display_queue");
