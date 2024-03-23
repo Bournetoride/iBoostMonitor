@@ -152,6 +152,7 @@ static int width = 83;    // Width of drawing space minus width of arrow
 static int step = 1;       // How far to move the triangle each iteration
 //
 
+extern QueueHandle_t g_display_queue;
 
 // Touchscreen related
 static uint16_t t_x = 0, t_y = 0;      // touch screen coordinates
@@ -553,45 +554,46 @@ static void touch(void) {
 }
 
 static void displayQueueReceive(void) {
-    struct solar solarInfo;
-    float value;
+    electricity_event_t electricity_event;
+    float watts;
     ib_info_t info;
 
     // Receive information from other tasks to display on the screen
-    if (xQueueReceive(displayQueue, &solarInfo, (TickType_t)0) == pdPASS) {
-        ESP_LOGI(TAGS, "displayQ Event: %d, value: %f, info: %d", solarInfo.event, solarInfo.value, solarInfo.info);
+    if (xQueueReceive(g_display_queue, &electricity_event, (TickType_t)0) == pdPASS) {
+        ESP_LOGI(TAGS, "displayQ Event: %d, watts: %f, info: %d", 
+                    electricity_event.event, electricity_event.watts, electricity_event.info);
         
-        switch (solarInfo.event) {
+        switch (electricity_event.event) {
             case SL_EXPORT:     // Export to grid
-                value = solarInfo.value;  // PV amount being exported to grid 
+                watts = electricity_event.watts;  // PV amount being exported to grid 
                 break;
 
             case SL_IMPORT:     // Import from grid
-                value = solarInfo.value;  // Amount of electricity being imported
+                watts = electricity_event.watts;  // Amount of electricity being imported
                 break;
 
             case SL_NOW:        // Solar PV now
-                value = solarInfo.value;  // PV now
+                watts = electricity_event.watts;  // PV now
                 break;
 
             case SL_TODAY:      // Solar PV today
-                value = solarInfo.value;  // PV today
+                watts = electricity_event.watts;  // PV today
                 break;
 
             case SL_WT_NOW:     // Solar water tank PV now
-                value = solarInfo.value;
+                watts = electricity_event.watts;
                 break;
             
             case SL_WT_TODAY:   // Solar water tank PV today
-                value = solarInfo.value;
+                watts = electricity_event.watts;
                 break;
 
             case SL_BATTERY:    // CT battery status (LOW/OK)
-                info = solarInfo.info;
+                info = electricity_event.info;
                 break;
 
             case SL_WT_STATUS:  // Off, Heating by solar, Hot
-                info = solarInfo.info;
+                info = electricity_event.info;
                 break;
         }
     }

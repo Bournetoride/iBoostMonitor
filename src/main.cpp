@@ -14,7 +14,7 @@
 #define SS_PIN 5
 #define MISO_PIN 19
 
-#define MAGIC_NUMER 360 // value used to conert iBoost value to watts
+#define MAGIC_NUMBER 360 // value used to conert iBoost value to watts
 
 CC1101 radio(SS_PIN,  MISO_PIN);
 
@@ -31,7 +31,7 @@ TaskHandle_t displayTaskHandle = NULL;
 QueueHandle_t ledTaskQueue;
 QueueHandle_t ws2812Queue;
 QueueHandle_t transmitTaskQueue;
-QueueHandle_t displayQueue;
+QueueHandle_t g_display_queue;
 
 int queueSize = 10;
 
@@ -141,10 +141,10 @@ void setup() {
     }
 
     // Create queue for sending messages to the display task
-    displayQueue = xQueueCreate(queueSize, sizeof(struct solar));
-    if (displayQueue == NULL) {
-        ESP_LOGE(TAG, "Error creating displayQueue");
-        strcpy(tx_item, "Error creating displayQueue");
+    g_display_queue = xQueueCreate(queueSize, sizeof(struct solar));
+    if (g_display_queue == NULL) {
+        ESP_LOGE(TAG, "Error creating g_display_queue");
+        strcpy(tx_item, "Error creating g_display_queue");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
@@ -459,13 +459,13 @@ void mqqtKeepAliveTask(void *parameter) {
  */
 void receivePacketTask(void *parameter) { 
     byte packet[65];                // The CC1101 library sets the biggest packet at 61
-    uint8_t addressLQI = 255;       // set received LQI to lowest value
-    uint8_t rxLQI;                  // signal strength test 
+    uint8_t address_lqi = 255;      // set received LQI to lowest value
+    uint8_t receive_lqi;            // signal strength test 
     JsonDocument doc;               // Create JSON message for sending via MQTT
     char msg[MSG_BUFFER_SIZE];      // MQTT message
     ledMessage led = RECEIVE;
     bool flag = true;
-    struct solar solarInfo;
+    electricity_event_t electricity_event;
 
     for( ;; ) {
         xSemaphoreTake(radioSemaphore, portMAX_DELAY);
@@ -484,11 +484,11 @@ void receivePacketTask(void *parameter) {
 
             //   buddy request                            sender packet
             if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
-                rxLQI = radio.getLQI();
-                ESP_LOGI(TAG, "Buddy/Sender frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, rxLQI);
+                receive_lqi = radio.getLQI();
+                ESP_LOGI(TAG, "Buddy/Sender frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, receive_lqi);
 
-                if(rxLQI < addressLQI) { // is the signal stronger than the previous/none
-                    addressLQI = rxLQI;
+                if(receive_lqi < address_lqi) { // is the signal stronger than the previous/none
+                    address_lqi = receive_lqi;
                     iboostInfo.address[0] = packet[0]; // save the address of the packet	0x1c7b; //
                     iboostInfo.address[1] = packet[1];
                     iboostInfo.addressValid = true;
@@ -499,7 +499,7 @@ void receivePacketTask(void *parameter) {
 
             // main unit (sending info to iBoost Buddy)
             if (packet[2] == 0x22) {    
-                ESP_LOGI(TAG, "iBoost frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, rxLQI);
+                ESP_LOGI(TAG, "iBoost frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, receive_lqi);
                 heating = (* ( short *) &packet[16]);
                 p1 = (* ( long*) &packet[18]);
                 p2 = (* ( long*) &packet[25]); // this depends on the request
@@ -507,20 +507,24 @@ void receivePacketTask(void *parameter) {
                 // ESP_LOGI(TAG, "packet[6]: %d, packet[7]: %d", packet[6], packet[7]);
                 if (packet[6] == 0) {
                     waterHeating = false;
-                    setWaterTankFlag(false);
+                    // setWaterTankFlag(false);
+                    // electricity_event.event = SL_WT_STATUS;
+                    // electricity_event.watts = 0;
+                    // electricity_event.info = IB_WT_OFF;
+                    // xQueueSend(g_display_queue, &electricity_event, 0);
                 } else {
                     waterHeating = true;
-                    if (heating > 0) {  // more than 0 watts are being used
-                        setWaterTankFlag(true);
-                        setWTNow((int) heating);
+                    // if (heating > 0) {  // more than 0 watts are being used
+                    //     setWaterTankFlag(true);
+                    //     setWTNow((int) heating);
 
-                        solarInfo.event = SL_WT_NOW;
-                        solarInfo.value = heating;
-                        solarInfo.info = IB_NONE;
-                        xQueueSend(displayQueue, &solarInfo, 0);
-                    } else {
-                        setWaterTankFlag(false);
-                    }
+                    //     electricity_event.event = SL_WT_NOW;
+                    //     electricity_event.watts = heating;
+                    //     electricity_event.info = IB_NONE;
+                    //     xQueueSend(g_display_queue, &electricity_event, 0);
+                    // } else {
+                    //     setWaterTankFlag(false);
+                    // }
                 }
 
                 if (packet[7] == 1) {
@@ -538,17 +542,26 @@ void receivePacketTask(void *parameter) {
                 boostTime=packet[5]; // boost time remaining (minutes)
 
                 ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  %s: %ld Watts  P2: %ld", 
-                    heating, p1, (p1/370 < 0 ? "Exporting": "Importing"), (p1/370 < 0 ? abs(p1/370): p1/370), p2); // was 390
+                    heating, p1, (p1/MAGIC_NUMBER < 0 ? "Exporting": "Importing"), 
+                    (p1/MAGIC_NUMBER < 0 ? abs(p1/MAGIC_NUMBER): p1/MAGIC_NUMBER), p2); 
 
-                // See if we're importing or exporting electricity
-                if (p1/377 < 0) {   // exporting
-                    setGridExportFlag(true);
-                    setExportNow((int) abs(p1/370));
-                } else if (p1/370 > 0){            // importing
-                    setGridImportFlag(true);
-                    setImportNow((int) p1/370);
+                // Importing or exporting electricity
+                if (p1/MAGIC_NUMBER < 0) {   // exporting
+                    // setGridExportFlag(true);
+                    // setExportNow((int) abs(p1/MAGIC_NUMBER));
+                    electricity_event.event = SL_EXPORT;
+                    electricity_event.watts = abs(p1/MAGIC_NUMBER);
+                    electricity_event.info = IB_NONE;
+                } else if (p1/MAGIC_NUMBER > 0){            // importing
+                    // setGridImportFlag(true);
+                    // setImportNow((int) p1/MAGIC_NUMBER);
+                    electricity_event.event = SL_IMPORT;
+                    electricity_event.watts = p1/MAGIC_NUMBER;
+                    electricity_event.info = IB_NONE;
                 }
-                
+                xQueueSend(g_display_queue, &electricity_event, 0);
+
+
                 // Serial.print("  P3: ");
                 // Serial.print((* (signed long*) &packet[29]) );
                 // Serial.print("  P4: ");
@@ -557,20 +570,24 @@ void receivePacketTask(void *parameter) {
                 switch (packet[24]) {
                     case   SAVED_TODAY:
                         iboostInfo.today = p2;
-                        setWTToday((int) p2);
-                        break;
+                        // setWTToday((int) p2);
+                        electricity_event.event = SL_WT_TODAY;
+                        electricity_event.watts = p2;
+                        electricity_event.info = IB_NONE;
+                        xQueueSend(g_display_queue, &electricity_event, 0);
+                    break;
                     case   SAVED_YESTERDAY:
                         iboostInfo.yesterday = p2;
-                        break;
+                    break;
                     case   SAVED_LAST_7:
                         iboostInfo.last7 = p2;
-                        break;
+                    break;
                     case   SAVED_LAST_28:
                         iboostInfo.last28 = p2;
-                        break;
+                    break;
                     case   SAVED_TOTAL:
                         iboostInfo.total = p2;
-                        break;
+                    break;
                 }
 
                 if (cylinderHot)
@@ -584,11 +601,6 @@ void receivePacketTask(void *parameter) {
                     ESP_LOGI(TAG, "Water Heating OFF");
                 }
 
-                if (batteryOk)
-                    ESP_LOGI(TAG, "Sender Battery OK");
-                else
-                    ESP_LOGI(TAG, "Warning - Sender Battery LOW");
-
                 ESP_LOGI(TAG, "Today: %ld Wh   Yesterday: %ld Wh   Last 7 Days: %ld Wh   Last 28 Days: %ld Wh   Total: %ld Wh   Boost Time: %d", 
                     iboostInfo.today, iboostInfo.yesterday, iboostInfo.last7, iboostInfo.last28, iboostInfo.total, boostTime);
 
@@ -599,19 +611,40 @@ void receivePacketTask(void *parameter) {
                 // Water tank status
                 if (cylinderHot) {
                     doc["hotWater"] =  "HOT";                        
+                    electricity_event.event = SL_WT_STATUS;
+                    electricity_event.watts = 0;
+                    electricity_event.info = IB_WT_HOT;
                 } else if (waterHeating) {
                     doc["hotWater"] =  "Heating by Solar";                        
+                    electricity_event.event = SL_WT_STATUS;
+                    electricity_event.watts = heating;          // equates to PV being used now
+                    electricity_event.info = IB_WT_HEATING;
                 } else {
                     doc["hotWater"] =  "Off";                        
+                    electricity_event.event = SL_WT_STATUS;
+                    electricity_event.watts = 0;
+                    electricity_event.info = IB_WT_OFF;
                 }
+                xQueueSend(g_display_queue, &electricity_event, 0);
                 
+
                 // Status of the sender battery
                 if (batteryOk) {
+                    ESP_LOGI(TAG, "Sender Battery OK");
                     doc["battery"] =  "OK"; 
+                    electricity_event.info = IB_BATTERY_OK;
                 } else {
+                    ESP_LOGI(TAG, "Warning - Sender Battery LOW");
                     doc["battery"] = "LOW"; 
+                    electricity_event.info = IB_BATTERY_LOW;
                 }
-                
+                electricity_event.event = SL_BATTERY;
+                electricity_event.watts = 0;
+                xQueueSend(g_display_queue, &electricity_event, 0);
+
+
+
+
                 xSemaphoreTake(keepAliveMQTTSemaphore, portMAX_DELAY);
                 if (MQTTclient.connected()) {
                     serializeJson(doc, msg);
@@ -634,7 +667,7 @@ void receivePacketTask(void *parameter) {
             xQueueSend(ws2812Queue, &led, 0); // led strip
 
             // ESP_LOGI(TAG, "## Receive Task Stack Left: %d", uxTaskGetStackHighWaterMark(NULL));
-         }   
+        }   
 
         xSemaphoreGive(radioSemaphore);
         vTaskDelay(100 / portTICK_PERIOD_MS);       // Give some time so other tasks can run/complete
@@ -649,7 +682,7 @@ void receivePacketTask(void *parameter) {
  * 
  */
 void transmitPacketTask(void *parameter) {
-    uint8_t txBuf[32];
+    uint8_t tx_buffer[32];
     uint8_t request = 0xca;
     ledMessage led = TX_FAKE_BUDDY_REQUEST;
 
@@ -658,29 +691,29 @@ void transmitPacketTask(void *parameter) {
             // whilst radio is transmitting no other radio operation should be in progress
             xSemaphoreTake(radioSemaphore, portMAX_DELAY);
 
-            memset(txBuf, 0, sizeof(txBuf));
+            memset(tx_buffer, 0, sizeof(tx_buffer));
 
             if ((request < 0xca) || (request > 0xce)) 
                 request = 0xca;
 
             // Payload
-            txBuf[0] = iboostInfo.address[0];
-            txBuf[1] = iboostInfo.address[1];		  
-            txBuf[2] = 0x21;
-            txBuf[3] = 0x8;
-            txBuf[4] = 0x92;
-            txBuf[5] = 0x7;
-            txBuf[8] = 0x24;
-            txBuf[10] = 0xa0;
-            txBuf[11] = 0xa0;
-            txBuf[12] = request; // request information (on this topic) from the main unit
-            txBuf[14] = 0xa0;
-            txBuf[15] = 0xa0;
-            txBuf[16] = 0xc8;
+            tx_buffer[0] = iboostInfo.address[0];
+            tx_buffer[1] = iboostInfo.address[1];		  
+            tx_buffer[2] = 0x21;
+            tx_buffer[3] = 0x8;
+            tx_buffer[4] = 0x92;
+            tx_buffer[5] = 0x7;
+            tx_buffer[8] = 0x24;
+            tx_buffer[10] = 0xa0;
+            tx_buffer[11] = 0xa0;
+            tx_buffer[12] = request; // request information (on this topic) from the main unit
+            tx_buffer[14] = 0xa0;
+            tx_buffer[15] = 0xa0;
+            tx_buffer[16] = 0xc8;
 
             radio.strobe(CC1101_SIDLE);
             radio.writeRegister(CC1101_TXFIFO, 0x1d);             // packet length
-            radio.writeBurstRegister(CC1101_TXFIFO, txBuf, 29);   // write the data to the TX FIFO
+            radio.writeBurstRegister(CC1101_TXFIFO, tx_buffer, 29);   // write the data to the TX FIFO
             radio.strobe(CC1101_STX);
             delay(5);
             radio.strobe(CC1101_SWOR);
@@ -692,19 +725,19 @@ void transmitPacketTask(void *parameter) {
             switch (request) {
                 case SAVED_TODAY:
                     ESP_LOGI(TAG, "Sent request: Saved Today");
-                    break;
+                break;
                 case SAVED_YESTERDAY:
                     ESP_LOGI(TAG, "Sent request: Saved Yesterday");
-                    break;
+                break;
                 case SAVED_LAST_7:
                     ESP_LOGI(TAG, "Sent request: Saved Last 7 Days");
-                    break;
+                break;
                 case SAVED_LAST_28:
                     ESP_LOGI(TAG, "Sent request: Saved Last 28 Days");
-                    break;
+                break;
                 case SAVED_TOTAL:
                     ESP_LOGI(TAG, "Sent request: Saved In Total");
-                    break;
+                break;
             }
 
             request++;
@@ -892,28 +925,28 @@ String connectionStatusMessage(wl_status_t wifiStatus) {
     switch (wifiStatus) {
         case WL_IDLE_STATUS:
             status = "Idle";        
-            break;
+        break;
         case WL_NO_SSID_AVAIL:
             status = "No SSID Available";        
-            break;
+        break;
         case WL_SCAN_COMPLETED:
             status = "Scan Completed";        
-            break;
+        break;
         case WL_CONNECTED:
             status = "Connected";        
-            break;
+        break;
         case WL_CONNECT_FAILED:
             status = "Connection Failed";        
-            break;
+        break;
         case WL_CONNECTION_LOST:
             status = "Connection Lost";        
-            break;
+        break;
         case WL_DISCONNECTED:
             status = "Disconnected";        
-            break;               
+        break;               
         default:
             status = "Unknown";
-            break;
+        break;
     }
 
     return status;
@@ -928,8 +961,8 @@ String connectionStatusMessage(wl_status_t wifiStatus) {
  */
 static void mqttCallback(char* topic, byte* message, unsigned int length) {
     String messageTemp;
-    int pvNow = 0;
     float pvToday = 0.0;
+    electricity_event_t electricity_event;
    
     for (int i = 0; i < length; i++) {
         Serial.print((char)message[i]);
@@ -939,18 +972,26 @@ static void mqttCallback(char* topic, byte* message, unsigned int length) {
     ESP_LOGI(TAG, "MQTT topic: %s, message: %s", topic, messageTemp);
 
     if (String(topic) == "solar/pvnow") {
-        pvNow = messageTemp.toInt();
-        if (pvNow > 30) {
-            setPVNow(pvNow);
-            setSolarGenerationFlag(true);
-        } else {
-            setSolarGenerationFlag(false);
-        }
+        electricity_event.event = SL_NOW;
+        electricity_event.watts = messageTemp.toFloat();
+        electricity_event.info = IB_NONE;
+        xQueueSend(g_display_queue, &electricity_event, 0);
+
+        // if (pvNow > 30) {
+        //     setPVNow(pvNow);
+        //     setSolarGenerationFlag(true);
+        // } else {
+        //     setSolarGenerationFlag(false);
+        // }
     }   
     
     if (String(topic) == "solar/pvtotal") {
-        pvToday = messageTemp.toFloat();
-        setPVToday(pvToday);
+        // pvToday = messageTemp.toFloat();
+        // setPVToday(pvToday);
+        electricity_event.event = SL_TODAY;
+        electricity_event.watts = messageTemp.toFloat();
+        electricity_event.info = IB_NONE;
+        xQueueSend(g_display_queue, &electricity_event, 0);
     }
 
     // if (String(topic) == "weather/description") {

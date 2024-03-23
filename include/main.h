@@ -8,7 +8,6 @@
 #include "freertos/task.h"
 #include "freertos/ringbuf.h"
 
-extern QueueHandle_t displayQueue;
 
 // iBoost derived information
 typedef enum {
@@ -26,17 +25,17 @@ typedef enum {
     SL_IMPORT       = 1,    // Import from grid
     SL_NOW          = 2,    // Solar PV now
     SL_TODAY        = 3,    // Solar PV today
-    SL_WT_NOW       = 4,    // Solar water tank PV now
+    SL_WT_NOW       = 4,    // Solar water tank PV now - TODO: Check if used or not
     SL_WT_TODAY     = 5,    // Solar water tank PV today
     SL_BATTERY      = 6,    // CT battery status (LOW/OK)
     SL_WT_STATUS    = 7     // Off, Heating by solar, Hot
 } sl_event_t;
 
-struct solar {
+typedef struct {
     sl_event_t event;       // Event that has happened
     ib_info_t info;         // iBoost information (if present)
-    float value;
-};
+    float watts;            // Value in watts
+} electricity_event_t;
 
 
 
