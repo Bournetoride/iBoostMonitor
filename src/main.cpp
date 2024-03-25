@@ -14,29 +14,29 @@
 #define SS_PIN 5
 #define MISO_PIN 19
 
-#define MAGIC_NUMBER 360 // value used to conert iBoost value to watts
+#define MAGIC_NUMBER 390 // value used to conert iBoost value to watts
 
 CC1101 radio(SS_PIN,  MISO_PIN);
 
 // freeRTOS specific variables
-TaskHandle_t blinkLEDTaskHandle = NULL;
-TaskHandle_t ws2812bTaskHandle = NULL;
+TaskHandle_t blink_led_task_handle = NULL;
+TaskHandle_t ws2812b_task_handle = NULL;
 
-TaskHandle_t mqqtKeepAliveTaskHandle = NULL;
-TaskHandle_t receivePacketTaskHandle = NULL;
-TaskHandle_t transmitPacketTaskHandle = NULL;
+TaskHandle_t mqqt_keep_alive_task_handle = NULL;
+TaskHandle_t receive_packet_task_handle = NULL;
+TaskHandle_t transmit_packet_task_handle = NULL;
 
-TaskHandle_t displayTaskHandle = NULL;
+TaskHandle_t display_task_handle = NULL;
 
-QueueHandle_t ledTaskQueue;
-QueueHandle_t ws2812Queue;
-QueueHandle_t transmitTaskQueue;
-QueueHandle_t g_display_queue;
+QueueHandle_t inbuilt_led_queue;
+QueueHandle_t ws2812b_queue;
+QueueHandle_t transmit_queue;
+QueueHandle_t g_main_queue;
 
 int queueSize = 10;
 
-SemaphoreHandle_t keepAliveMQTTSemaphore;
-SemaphoreHandle_t radioSemaphore;
+SemaphoreHandle_t keep_alive_mqtt_semaphore;
+SemaphoreHandle_t radio_semaphore;
 
 RingbufHandle_t buf_handle;
 
@@ -69,15 +69,16 @@ enum ledMessage{
     BLANK
 };
 
-struct iboost {
+typedef struct  {
     long today;
     long yesterday;
     long last7;
     long last28;
     long total;
     uint8_t address[2];
-    bool addressValid;
-} iboostInfo;
+    bool b_is_address_valid;
+    bool b_sender_battery_ok;
+} iboost_information_t;
 
 // LED colours
 typedef struct {
@@ -92,35 +93,37 @@ typedef struct {
 // Logging tag
 static const char* TAG = "iBoost";
 
-WiFiClient wifiClient;
-byte macAddress[6];
-PubSubClient MQTTclient(MQTT_SERVER, MQTT_PORT, wifiClient);
-colours_t pixelColours;
-char weatherDescription[35];    // buffer for the current weather description from OpenWeatherMap
+WiFiClient wifi_client;
+byte mac_address[6];
+PubSubClient mqtt_client(MQTT_SERVER, MQTT_PORT, wifi_client);
+colours_t pixel_colours;
+char weather_description[35];    // buffer for the current weather description from OpenWeatherMap
 static portMUX_TYPE myMux = portMUX_INITIALIZER_UNLOCKED;
 
+iboost_information_t volatile iboostInfo = {.today = 0, .yesterday = 0, .last7 = 0, .last28 = 0, .total = 0,
+                                            .b_is_address_valid = false, .b_sender_battery_ok = false};
 
 /* Function prototypes */
-void blinkLEDTask(void *parameter);
-void mqqtKeepAliveTask(void *parameter);
-void receivePacketTask(void *parameter);
-void transmitPacketTask(void *parameter);
-void ws2812bTask(void *parameter);
+void blink_led_task(void *parameter);
+void mqtt_keep_alive_task(void *parameter);
+void receive_packet_task(void *parameter);
+void transmit_packet_task(void *parameter);
+void ws2812b_task(void *parameter);
 ///////
-void radioSetup();
-void connectToWiFi(void);
-void connectToMQTT(void);
-void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info);
-String connectionStatusMessage(wl_status_t wifiStatus);
-static void mqttCallback(char* topic, byte* message, unsigned int length);
+void radio_setup();
+void connect_to_wifi(void);
+void connect_to_mqtt(void);
+//void on_wifi_event_handler(WiFiEvent_t event, WiFiEventInfo_t info);
+String wifi_connection_status_message(wl_status_t wifi_status);
+static void mqtt_callback(char* topic, byte* message, unsigned int length);
 
 /**
  * @brief Set up everything. SPI, WiFi, MQTT, and CC1101
  * 
  */
 void setup() {
-    bool setupFlag = true;      // Flag for confirming setup was sucessfull or not
-    BaseType_t xReturned;
+    bool b_setup_successful = true;      // Flag for confirming setup was sucessfull or not
+    BaseType_t x_returned;
     UBaseType_t res = pdFALSE;
     char tx_item[50];
 
@@ -129,7 +132,7 @@ void setup() {
     ws2812b.show();
     ws2812b.clear();
     for (int pixel = 0; pixel < NUM_PIXELS; pixel++) {          // for each pixel
-        ws2812b.setPixelColor(pixel, pixelColours.violet);      // it only takes effect when pixels.show() is called
+        ws2812b.setPixelColor(pixel, pixel_colours.violet);      // it only takes effect when pixels.show() is called
     }
     ws2812b.show();  // update to the WS2812B Led Strip
 
@@ -137,74 +140,68 @@ void setup() {
     buf_handle = xRingbufferCreate(1028, RINGBUF_TYPE_NOSPLIT);
     if (buf_handle == NULL) {
         ESP_LOGE(TAG, "Failed to create ring buffer");
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
     // Create queue for sending messages to the display task
-    g_display_queue = xQueueCreate(queueSize, sizeof(electricity_event_t));
-    if (g_display_queue == NULL) {
-        ESP_LOGE(TAG, "Error creating g_display_queue");
-        strcpy(tx_item, "Error creating g_display_queue");
+    g_main_queue = xQueueCreate(queueSize, sizeof(electricity_event_t));
+    if (g_main_queue == NULL) {
+        ESP_LOGE(TAG, "Error creating g_main_queue");
+        strcpy(tx_item, "Error creating g_main_queue");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
 
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
     // Create queue for sending messages to the LED task and transmit packet task
-    ledTaskQueue = xQueueCreate(queueSize, sizeof(bool));  // internal led
-    if (ledTaskQueue == NULL) {
-        ESP_LOGE(TAG, "Error creating ledTaskQueue");
-        // updateLog("Error creating ledTaskQueue");
-        strcpy(tx_item, "Error creating ledTaskQueue");
+    inbuilt_led_queue = xQueueCreate(queueSize, sizeof(bool));  // internal led
+    if (inbuilt_led_queue == NULL) {
+        ESP_LOGE(TAG, "Error creating inbuilt_led_queue");
+        // updateLog("Error creating inbuilt_led_queue");
+        strcpy(tx_item, "Error creating inbuilt_led_queue");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
 
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
-    ws2812Queue = xQueueCreate(queueSize, sizeof(ledMessage));  // led strip
-    if (ws2812Queue == NULL) {
-        ESP_LOGE(TAG, "Error creating ws2812Queue");
-        // updateLog("Error creating ws2812Queue");
-        strcpy(tx_item, "Error creating ws2812Queue");
+    ws2812b_queue = xQueueCreate(queueSize, sizeof(ledMessage));  // led strip
+    if (ws2812b_queue == NULL) {
+        ESP_LOGE(TAG, "Error creating ws2812b_queue");
+        // updateLog("Error creating ws2812b_queue");
+        strcpy(tx_item, "Error creating ws2812b_queue");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
 
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
-    transmitTaskQueue = xQueueCreate(queueSize, sizeof(bool));
-    if (transmitTaskQueue == NULL) {
-        ESP_LOGE(TAG, "Error creating transmitTaskQueue");
-        // updateLog("Error creating transmitTaskQueue");
-        strcpy(tx_item, "Error creating transmitTaskQueue");
+    transmit_queue = xQueueCreate(queueSize, sizeof(bool));
+    if (transmit_queue == NULL) {
+        ESP_LOGE(TAG, "Error creating transmit_queue");
+        // updateLog("Error creating transmit_queue");
+        strcpy(tx_item, "Error creating transmit_queue");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
     // Create required semaphores
-    keepAliveMQTTSemaphore = xSemaphoreCreateBinary();
-    xSemaphoreGive(keepAliveMQTTSemaphore);            // Stop keep alive when publishing
+    keep_alive_mqtt_semaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(keep_alive_mqtt_semaphore);            // Stop keep alive when publishing
 
-    radioSemaphore = xSemaphoreCreateBinary();
-    xSemaphoreGive(radioSemaphore);
+    radio_semaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(radio_semaphore);
 
-    iboostInfo.today = 0;
-    iboostInfo.yesterday = 0;
-    iboostInfo.last7 = 0;
-    iboostInfo.last28 = 0;
-    iboostInfo.total = 0;
-    iboostInfo.addressValid = false;
 
     SPI.begin();
     ESP_LOGI(TAG, "SPI OK");
@@ -216,84 +213,83 @@ void setup() {
 
     // updateLog("SPI Ok");
     // Set up the radio
-    radioSetup();
+    radio_setup();
     
     /* LED setup - so we can use the module without serial terminal,
        set low to start so it's off and flashes when it receives a packet */
     pinMode(LED_BUILTIN, OUTPUT);   
 
     // Internal blue LED on ESP32 board
-    xReturned = xTaskCreate(blinkLEDTask, "blinkLEDTask", 1024, NULL, tskIDLE_PRIORITY, &blinkLEDTaskHandle);
-    if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create blinkLEDTask");
-        // updateLog("Failed to create blinkLEDTask");
-        strcpy(tx_item, "Error creating blinkLEDTask");
+    x_returned = xTaskCreate(blink_led_task, "blink_led_task", 1024, NULL, tskIDLE_PRIORITY, &blink_led_task_handle);
+    if (x_returned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create blink_led_task");
+        strcpy(tx_item, "Error creating blink_led_task");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
-    xReturned = xTaskCreate(ws2812bTask, "ws2812bTask", 2048, NULL, tskIDLE_PRIORITY, &ws2812bTaskHandle);
-    if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create ws2812bTask");
-        // updateLog("Failed to create ws2812bTask");
-        strcpy(tx_item, "Error creating ws2812bTask");
+    x_returned = xTaskCreate(ws2812b_task, "ws2812b_task", 2048, NULL, tskIDLE_PRIORITY, &ws2812b_task_handle);
+    if (x_returned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create ws2812b_task");
+        // updateLog("Failed to create ws2812b_task");
+        strcpy(tx_item, "Error creating ws2812b_task");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
     /* This task also creates/checks the WiFi connection */
-    xReturned = xTaskCreate( mqqtKeepAliveTask, "mqqtKeepAliveTask", 4096, NULL, 1, &mqqtKeepAliveTaskHandle);
-    if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create mqqtKeepAliveTask");
-        // updateLog("Failed to create mqqtKeepAliveTask");
+    x_returned = xTaskCreate(mqtt_keep_alive_task, "mqtt_keep_alive_task", 4096, NULL, 1, &mqqt_keep_alive_task_handle);
+    if (x_returned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create mqtt_keep_alive_task");
+        // updateLog("Failed to create mqtt_keep_alive_task");
         strcpy(tx_item, "Error creating mqttKeepAliveTask");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
-    xReturned = xTaskCreate(receivePacketTask, "receivePacketTask", 4096, NULL, 3, &receivePacketTaskHandle);
-    if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create receivePacketTask");
-        // updateLog("Failed to create receivePacketTask");
+    x_returned = xTaskCreate(receive_packet_task, "receive_packet_task", 4096, NULL, 3, &receive_packet_task_handle);
+    if (x_returned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create receive_packet_task");
+        // updateLog("Failed to create receive_packet_task");
         strcpy(tx_item, "Error creating receivePackeTask");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
-    xReturned = xTaskCreate(transmitPacketTask, "transmitPacketTask", 4096, NULL, 3, &transmitPacketTaskHandle);
-    if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create transmitPacketTask");
-        // updateLog("Failed to create transmitPacketTask");
-        strcpy(tx_item, "Error creating transmitPacketTask");
+    x_returned = xTaskCreate(transmit_packet_task, "transmit_packet_task", 4096, NULL, 3, &transmit_packet_task_handle);
+    if (x_returned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create transmit_packet_task");
+        // updateLog("Failed to create transmit_packet_task");
+        strcpy(tx_item, "Error creating transmit_packet_task");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
-        setupFlag = false;
+        b_setup_successful = false;
     }
 
     // Actioned in screen.cpp
-    xReturned = xTaskCreate(displayTask, "displayTask", 3072, NULL, tskIDLE_PRIORITY, &displayTaskHandle);
-    if (xReturned != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create displayTask, setup failed");
+    x_returned = xTaskCreate(display_task, "display_task", 3072, NULL, tskIDLE_PRIORITY, &display_task_handle);
+    if (x_returned != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create display_task, setup failed");
         // No point send a log item as there isn't any display task to action it!!
-        setupFlag = false;
+        b_setup_successful = false;
     } 
 
     // Everything set up okay so turn (blue) LED off
-    if (setupFlag) {
+    if (b_setup_successful) {
         digitalWrite(LED_BUILTIN, LOW);
 
         ws2812b.clear();
@@ -328,16 +324,16 @@ void loop(void) {
  * 
  * @param parameter Parameters passed to task on creation.
  */
-void blinkLEDTask(void *parameter) {
-    bool flag = false;
+void blink_led_task(void *parameter) {
+    bool b_flag = false;
 
     for( ;; ) {
-        xQueueReceive(ledTaskQueue, &flag, (TickType_t)portMAX_DELAY);
-        if (flag) {
+        xQueueReceive(inbuilt_led_queue, &b_flag, (TickType_t)portMAX_DELAY);
+        if (b_flag) {
             digitalWrite(LED_BUILTIN, HIGH);        // Turn LED on
             vTaskDelay(200 / portTICK_PERIOD_MS);   // Wait 200ms
             digitalWrite(LED_BUILTIN, LOW);         // Turn LED off
-            flag = false;                           // Reset flag
+            b_flag = false;                           // Reset flag
         }
     }
     vTaskDelete (NULL);
@@ -349,34 +345,34 @@ void blinkLEDTask(void *parameter) {
  * 
  * @param parameter Parameters passed to task on creation.
  */
-void ws2812bTask(void *parameter) {
+void ws2812b_task(void *parameter) {
     ledMessage led = BLANK;
 
     for( ;; ) {
-        xQueueReceive(ws2812Queue, &led, (TickType_t)portMAX_DELAY);
+        xQueueReceive(ws2812b_queue, &led, (TickType_t)portMAX_DELAY);
         switch (led) {
             case TX_FAKE_BUDDY_REQUEST:
-                ws2812b.setPixelColor(0, pixelColours.green);
+                ws2812b.setPixelColor(0, pixel_colours.green);
                 ws2812b.show();
                 vTaskDelay(150 / portTICK_PERIOD_MS);
-                ws2812b.setPixelColor(0, pixelColours.clear);
+                ws2812b.setPixelColor(0, pixel_colours.clear);
                 ws2812b.show();
                 break;
             case RECEIVE:
-                ws2812b.setPixelColor(1, pixelColours.blue);
+                ws2812b.setPixelColor(1, pixel_colours.blue);
                 ws2812b.show();
                 vTaskDelay(150 / portTICK_PERIOD_MS);
-                ws2812b.setPixelColor(1, pixelColours.clear);
+                ws2812b.setPixelColor(1, pixel_colours.clear);
                 ws2812b.show();
                 break;
             case ERROR:
-                ws2812b.setPixelColor(2, pixelColours.red);
-                ws2812b.setPixelColor(3, pixelColours.red);
+                ws2812b.setPixelColor(2, pixel_colours.red);
+                ws2812b.setPixelColor(3, pixel_colours.red);
                 ws2812b.show();
                 break;
             case CLEAR_ERROR:
-                ws2812b.setPixelColor(2, pixelColours.clear);
-                ws2812b.setPixelColor(3, pixelColours.clear);
+                ws2812b.setPixelColor(2, pixel_colours.clear);
+                ws2812b.setPixelColor(3, pixel_colours.clear);
                 ws2812b.show();
                 break;
             case CLEAR:
@@ -402,36 +398,36 @@ void ws2812bTask(void *parameter) {
  * 
  * @param parameter Parameters passed to task on creation.
  */
-void mqqtKeepAliveTask(void *parameter) {
+void mqtt_keep_alive_task(void *parameter) {
     ledMessage led = BLANK;
 
     // setting must be set before a mqtt connection is made
-    MQTTclient.setKeepAlive( 90 ); // setting keep alive to 90 seconds makes for a very reliable connection.
-    MQTTclient.setBufferSize( 256 );
-    MQTTclient.setSocketTimeout( 15 );
+    mqtt_client.setKeepAlive( 90 ); // setting keep alive to 90 seconds makes for a very reliable connection.
+    mqtt_client.setBufferSize( 256 );
+    mqtt_client.setSocketTimeout( 15 );
     for( ;; ) {
         //check for a is-connected and if the WiFi 'thinks' its connected, found checking on both is more realible than just a single check
-        if ((MQTTclient.connected()) && (WiFi.status() == WL_CONNECTED))
+        if ((mqtt_client.connected()) && (WiFi.status() == WL_CONNECTED))
         {   // whiles MQTTlient.loop() is running no other mqtt operations should be in process
-            xSemaphoreTake(keepAliveMQTTSemaphore, portMAX_DELAY); 
-            MQTTclient.loop();
-            xSemaphoreGive(keepAliveMQTTSemaphore);
+            xSemaphoreTake(keep_alive_mqtt_semaphore, portMAX_DELAY); 
+            mqtt_client.loop();
+            xSemaphoreGive(keep_alive_mqtt_semaphore);
         } else {       
             led = ERROR;
-            xQueueSend(ws2812Queue, &led, 0);
+            xQueueSend(ws2812b_queue, &led, 0);
             wl_status_t status = WiFi.status();
             ESP_LOGI(TAG, "MQTT keep alive: MQTT %s,  WiFi %s", 
-                    MQTTclient.connected() ? "Connected" : "Not Connected", 
-                    connectionStatusMessage(status)
+                    mqtt_client.connected() ? "Connected" : "Not Connected", 
+                    wifi_connection_status_message(status)
             );
             if (!(status == WL_CONNECTED)) {
-                connectToWiFi();
+                connect_to_wifi();
             }
 
-            connectToMQTT();
+            connect_to_mqtt();
 
             configTime(0, 0, SNTP_TIME_SERVER);  // connect to ntp time server
-            updateLocalTime();                      // update the local time
+            update_local_time();                      // update the local time
     
             led = CLEAR_ERROR;
             char tx_item[] = "Set up complete";
@@ -443,7 +439,7 @@ void mqqtKeepAliveTask(void *parameter) {
             }
 
             //updateLog("Set up complete");
-            xQueueSend(ws2812Queue, &led, 0);
+            xQueueSend(ws2812b_queue, &led, 0);
         }
         vTaskDelay(500 / portTICK_PERIOD_MS); //task runs approx every 500 mS
 
@@ -457,24 +453,24 @@ void mqqtKeepAliveTask(void *parameter) {
  * @brief Handle the receipt of a packet from the CC1101
  * 
  */
-void receivePacketTask(void *parameter) { 
+void receive_packet_task(void *parameter) { 
     byte packet[65];                // The CC1101 library sets the biggest packet at 61
     uint8_t address_lqi = 255;      // set received LQI to lowest value
     uint8_t receive_lqi;            // signal strength test 
     JsonDocument doc;               // Create JSON message for sending via MQTT
     char msg[MSG_BUFFER_SIZE];      // MQTT message
     ledMessage led = RECEIVE;
-    bool flag = true;
+    bool b_flag = true;
     electricity_event_t electricity_event;
 
     for( ;; ) {
-        xSemaphoreTake(radioSemaphore, portMAX_DELAY);
+        xSemaphoreTake(radio_semaphore, portMAX_DELAY);
         byte pkt_size = radio.getPacket(packet);
         if (pkt_size > 0 && radio.crcok()) {        // We have a valid packet with some data
             short heating;
             long p1, p2;
             byte boostTime;
-            bool waterHeating, cylinderHot, batteryOk;
+            bool b_is_water_heating_by_solar, b_is_cylinder_hot, b_is_battery_ok;
             int16_t rssi = radio.getRSSIdbm();
 
             #ifdef HEXDUMP  // declared in platformio.ini
@@ -491,7 +487,7 @@ void receivePacketTask(void *parameter) {
                     address_lqi = receive_lqi;
                     iboostInfo.address[0] = packet[0]; // save the address of the packet	0x1c7b; //
                     iboostInfo.address[1] = packet[1];
-                    iboostInfo.addressValid = true;
+                    iboostInfo.b_is_address_valid = true;
 
                     ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboostInfo.address[0], iboostInfo.address[1]);
                 }		
@@ -504,39 +500,23 @@ void receivePacketTask(void *parameter) {
                 p1 = (* ( long*) &packet[18]);
                 p2 = (* ( long*) &packet[25]); // this depends on the request
 
-                // ESP_LOGI(TAG, "packet[6]: %d, packet[7]: %d", packet[6], packet[7]);
-                if (packet[6] == 0) {
-                    waterHeating = false;
-                    // setWaterTankFlag(false);
-                    // electricity_event.event = SL_WT_STATUS;
-                    // electricity_event.watts = 0;
-                    // electricity_event.info = IB_WT_OFF;
-                    // xQueueSend(g_display_queue, &electricity_event, 0);
+                ESP_LOGI(TAG, "packet[6]: %d, packet[7]: %d", packet[6], packet[7]);
+                if (packet[6] == 1) {
+                    b_is_water_heating_by_solar = true;
                 } else {
-                    waterHeating = true;
-                    // if (heating > 0) {  // more than 0 watts are being used
-                    //     setWaterTankFlag(true);
-                    //     setWTNow((int) heating);
-
-                    //     electricity_event.event = SL_WT_NOW;
-                    //     electricity_event.watts = heating;
-                    //     electricity_event.info = IB_NONE;
-                    //     xQueueSend(g_display_queue, &electricity_event, 0);
-                    // } else {
-                    //     setWaterTankFlag(false);
-                    // }
+                    b_is_water_heating_by_solar = false;
                 }
 
                 if (packet[7] == 1) {
-                    cylinderHot = true;
+                    b_is_cylinder_hot = true;
                 } else {
-                    cylinderHot = false;
+                    b_is_cylinder_hot = false;
                 }
 
                 if (packet[12]) {
-                    batteryOk = false;
+                    b_is_battery_ok = false;
                 } else {
-                    batteryOk = true;
+                    b_is_battery_ok = true;
                 }
 
                 boostTime=packet[5]; // boost time remaining (minutes)
@@ -547,19 +527,15 @@ void receivePacketTask(void *parameter) {
 
                 // Importing or exporting electricity
                 if (p1/MAGIC_NUMBER < 0) {   // exporting
-                    // setGridExportFlag(true);
-                    // setExportNow((int) abs(p1/MAGIC_NUMBER));
                     electricity_event.event = SL_EXPORT;
                     electricity_event.watts = abs(p1/MAGIC_NUMBER);
                     electricity_event.info = IB_NONE;
                 } else if (p1/MAGIC_NUMBER > 0){            // importing
-                    // setGridImportFlag(true);
-                    // setImportNow((int) p1/MAGIC_NUMBER);
                     electricity_event.event = SL_IMPORT;
                     electricity_event.watts = p1/MAGIC_NUMBER;
                     electricity_event.info = IB_NONE;
                 }
-                xQueueSend(g_display_queue, &electricity_event, 0);
+                xQueueSend(g_main_queue, &electricity_event, 0);
 
 
                 // Serial.print("  P3: ");
@@ -569,32 +545,37 @@ void receivePacketTask(void *parameter) {
             
                 switch (packet[24]) {
                     case   SAVED_TODAY:
-                        iboostInfo.today = p2;
-                        // setWTToday((int) p2);
-                        electricity_event.event = SL_WT_TODAY;
-                        electricity_event.watts = p2;
-                        electricity_event.info = IB_NONE;
-                        xQueueSend(g_display_queue, &electricity_event, 0);
+                        //if (iboostInfo.today != p2) {   // only update display if changed
+                            iboostInfo.today = p2;
+                            electricity_event.event = SL_WT_TODAY;
+                            electricity_event.watts = p2;
+                            electricity_event.info = IB_NONE;
+                            xQueueSend(g_main_queue, &electricity_event, 0);
+                        //} // TODO - check what happens with screensaver active
                     break;
+
                     case   SAVED_YESTERDAY:
                         iboostInfo.yesterday = p2;
                     break;
+
                     case   SAVED_LAST_7:
                         iboostInfo.last7 = p2;
                     break;
+
                     case   SAVED_LAST_28:
                         iboostInfo.last28 = p2;
                     break;
+
                     case   SAVED_TOTAL:
                         iboostInfo.total = p2;
                     break;
                 }
 
-                if (cylinderHot)
+                if (b_is_cylinder_hot)
                     ESP_LOGI(TAG, "Water Tank HOT");
                 else if (boostTime > 0)
                     ESP_LOGI(TAG, "Manual Boost ON"); 
-                else if (waterHeating) {
+                else if (b_is_water_heating_by_solar) {
                     ESP_LOGI(TAG, "Heating by Solar = %d Watts", heating);
                 }
                 else {
@@ -609,14 +590,15 @@ void receivePacketTask(void *parameter) {
                 doc["savedToday"] = iboostInfo.today;
                 
                 // Water tank status
-                if (cylinderHot) {
+                if (b_is_cylinder_hot) {
                     doc["hotWater"] =  "HOT";                        
                     electricity_event.event = SL_WT_STATUS;
                     electricity_event.watts = 0;
                     electricity_event.info = IB_WT_HOT;
-                } else if (waterHeating) {
+                } else if (b_is_water_heating_by_solar) {
+                    ESP_LOGI(TAG, "Heating by solar detected");
                     doc["hotWater"] =  "Heating by Solar";                        
-                    electricity_event.event = SL_WT_STATUS;
+                    electricity_event.event = SL_WT_NOW;
                     electricity_event.watts = heating;          // equates to PV being used now
                     electricity_event.info = IB_WT_HEATING;
                 } else {
@@ -625,35 +607,34 @@ void receivePacketTask(void *parameter) {
                     electricity_event.watts = 0;
                     electricity_event.info = IB_WT_OFF;
                 }
-                xQueueSend(g_display_queue, &electricity_event, 0);
+                xQueueSend(g_main_queue, &electricity_event, 0);
                 
 
                 // Status of the sender battery
-                if (batteryOk) {
+                if (b_is_battery_ok) {
+                    iboostInfo.b_sender_battery_ok = true;
                     ESP_LOGI(TAG, "Sender Battery OK");
                     doc["battery"] =  "OK"; 
                     electricity_event.info = IB_BATTERY_OK;
                 } else {
+                    iboostInfo.b_sender_battery_ok = false;
                     ESP_LOGI(TAG, "Warning - Sender Battery LOW");
                     doc["battery"] = "LOW"; 
                     electricity_event.info = IB_BATTERY_LOW;
                 }
                 electricity_event.event = SL_BATTERY;
                 electricity_event.watts = 0;
-                xQueueSend(g_display_queue, &electricity_event, 0);
+                xQueueSend(g_main_queue, &electricity_event, 0);
 
-
-
-
-                xSemaphoreTake(keepAliveMQTTSemaphore, portMAX_DELAY);
-                if (MQTTclient.connected()) {
+                xSemaphoreTake(keep_alive_mqtt_semaphore, portMAX_DELAY);
+                if (mqtt_client.connected()) {
                     serializeJson(doc, msg);
-                    MQTTclient.publish("iboost/iboost", msg);
+                    mqtt_client.publish("iboost/iboost", msg);
                     ESP_LOGI(TAG, "Published MQTT message: %s", msg);           
                 } else {
                     ESP_LOGW(TAG, "Unable to publish message: %s to MQTT - not connected!", msg);    
                 }
-                xSemaphoreGive(keepAliveMQTTSemaphore);
+                xSemaphoreGive(keep_alive_mqtt_semaphore);
 
                 //client.publish("iboost/savedYesterday", msg);
                 //client.publish("iboost/savedLast7", msg);
@@ -663,13 +644,13 @@ void receivePacketTask(void *parameter) {
 
 
             // Send message to LED task to blink the LED to show we've received a packet
-            xQueueSend(ledTaskQueue, &flag, 0); // internal led
-            xQueueSend(ws2812Queue, &led, 0); // led strip
+            xQueueSend(inbuilt_led_queue, &b_flag, 0); // internal led
+            xQueueSend(ws2812b_queue, &led, 0); // led strip
 
             // ESP_LOGI(TAG, "## Receive Task Stack Left: %d", uxTaskGetStackHighWaterMark(NULL));
         }   
 
-        xSemaphoreGive(radioSemaphore);
+        xSemaphoreGive(radio_semaphore);
         vTaskDelay(100 / portTICK_PERIOD_MS);       // Give some time so other tasks can run/complete
         // TODO - can we increase this delay or just use one task for tx and rx - no reason why not
     }
@@ -681,15 +662,15 @@ void receivePacketTask(void *parameter) {
  * @brief Transmit a packet to the iBoost main unit to request information
  * 
  */
-void transmitPacketTask(void *parameter) {
+void transmit_packet_task(void *parameter) {
     uint8_t tx_buffer[32];
     uint8_t request = 0xca;
     ledMessage led = TX_FAKE_BUDDY_REQUEST;
 
     for( ;; ) {
-        if(iboostInfo.addressValid) {
+        if(iboostInfo.b_is_address_valid) {
             // whilst radio is transmitting no other radio operation should be in progress
-            xSemaphoreTake(radioSemaphore, portMAX_DELAY);
+            xSemaphoreTake(radio_semaphore, portMAX_DELAY);
 
             memset(tx_buffer, 0, sizeof(tx_buffer));
 
@@ -742,9 +723,9 @@ void transmitPacketTask(void *parameter) {
 
             request++;
                         
-            xSemaphoreGive(radioSemaphore);
+            xSemaphoreGive(radio_semaphore);
 
-            xQueueSend(ws2812Queue, &led, 0);
+            xQueueSend(ws2812b_queue, &led, 0);
                         
             // ESP_LOGI(TAG, "## Transmit Task Stack Left: %d", uxTaskGetStackHighWaterMark(NULL));
         }
@@ -759,7 +740,7 @@ void transmitPacketTask(void *parameter) {
  * @brief Set up the CC1101 for receiving iBoost packets
  * 
  */
-void radioSetup() {
+void radio_setup() {
     radio.reset();
     radio.begin(868.350e6); // Freq, do not forget the "e6"
     radio.setMaxPktSize(61);
@@ -821,26 +802,26 @@ void radioSetup() {
  * @brief Attempt to connect with the MQTT broker
  * 
  */
-void connectToMQTT(void) {
-    xSemaphoreTake(keepAliveMQTTSemaphore, portMAX_DELAY); 
+void connect_to_mqtt(void) {
+    xSemaphoreTake(keep_alive_mqtt_semaphore, portMAX_DELAY); 
 
     // Create client ID from mac address
-    String clientId = String(macAddress[0]) + String(macAddress[5]);
+    String clientId = String(mac_address[0]) + String(mac_address[5]);
     ESP_LOGI(TAG, "Connecting to MQTT as client ID: %s", clientId);
 
-    while (!MQTTclient.connected()) {
+    while (!mqtt_client.connected()) {
         // Attempt to connect
-        if (MQTTclient.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
+        if (mqtt_client.connect(clientId.c_str(), MQTT_USER, MQTT_USER_PASSWORD)) {
             ESP_LOGI(TAG, "   connecting to MQTT...");
             vTaskDelay(250);
         }      
     }
 
     // subscribe to topics we're interested in
-    if (MQTTclient.subscribe("solar/pvnow", 0)) {
+    if (mqtt_client.subscribe("solar/pvnow", 0)) {
         ESP_LOGI(TAG, "Subscribed to MQTT topic solar/pvnow");
     };
-    if (MQTTclient.subscribe("solar/pvtotal", 0)) {
+    if (mqtt_client.subscribe("solar/pvtotal", 0)) {
         ESP_LOGI(TAG, "Subscribed to MQTT topic solar/pvtotal");
     }
     // if (MQTTclient.subscribe("weather/description", 0)) {
@@ -850,9 +831,9 @@ void connectToMQTT(void) {
     //     ESP_LOGI(TAG, "Subscribed to MQTT topic weather/outsidetemp");
     // }
      
-    xSemaphoreGive(keepAliveMQTTSemaphore); 
+    xSemaphoreGive(keep_alive_mqtt_semaphore); 
 
-    MQTTclient.setCallback(mqttCallback);
+    mqtt_client.setCallback(mqtt_callback);
 
     ESP_LOGI(TAG, "Connected to MQTT");
 
@@ -869,8 +850,8 @@ void connectToMQTT(void) {
  * @brief Connect to WiFi
  * 
  */
-void connectToWiFi(void) {
-    String tempString = "IP Address: ";
+void connect_to_wifi(void) {
+    String temp_string = "IP Address: ";
     char tx_item[50];
     UBaseType_t res = pdFALSE;
 
@@ -908,21 +889,21 @@ void connectToWiFi(void) {
         ESP_LOGI(TAG, "Item sent to Ringbuffer");
     }
 
-    WiFi.macAddress(macAddress);
+    WiFi.macAddress(mac_address);
     ESP_LOGI(TAG, "IP Address: %s  - MAC Address: %d.%d.%d.%d.%d.%d", 
-        WiFi.localIP().toString(), macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+        WiFi.localIP().toString(), mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
 }
 
 
 /**
- * @brief Convert connectionStatusMessage
+ * @brief Convert wifi_connection_status_message
  * 
  * @param String Status of WiFi connection
  */
-String connectionStatusMessage(wl_status_t wifiStatus) {
-    String status;
+String wifi_connection_status_message(wl_status_t wifi_status) {
+    String status = "Replace with status";
 
-    switch (wifiStatus) {
+    switch (wifi_status) {
         case WL_IDLE_STATUS:
             status = "Idle";        
         break;
@@ -959,23 +940,23 @@ String connectionStatusMessage(wl_status_t wifiStatus) {
  * @param message Message
  * @param length Length of message
  */
-static void mqttCallback(char* topic, byte* message, unsigned int length) {
-    String messageTemp;
+static void mqtt_callback(char* topic, byte* message, unsigned int length) {
+    String message_temp;
     float pvToday = 0.0;
     electricity_event_t electricity_event;
    
     for (int i = 0; i < length; i++) {
         Serial.print((char)message[i]);
-        messageTemp += (char)message[i];
+        message_temp += (char)message[i];
     }
 
-    ESP_LOGI(TAG, "MQTT topic: %s, message: %s", topic, messageTemp);
+    ESP_LOGI(TAG, "MQTT topic: %s, message: %s", topic, message_temp);
 
     if (String(topic) == "solar/pvnow") {
         electricity_event.event = SL_NOW;
-        electricity_event.watts = messageTemp.toFloat();
+        electricity_event.watts = message_temp.toFloat();
         electricity_event.info = IB_NONE;
-        xQueueSend(g_display_queue, &electricity_event, 0);
+        xQueueSend(g_main_queue, &electricity_event, 0);
 
         // if (pvNow > 30) {
         //     setPVNow(pvNow);
@@ -986,23 +967,23 @@ static void mqttCallback(char* topic, byte* message, unsigned int length) {
     }   
     
     if (String(topic) == "solar/pvtotal") {
-        // pvToday = messageTemp.toFloat();
+        // pvToday = message_temp.toFloat();
         // setPVToday(pvToday);
         electricity_event.event = SL_TODAY;
-        electricity_event.watts = messageTemp.toFloat();
+        electricity_event.watts = message_temp.toFloat();
         electricity_event.info = IB_NONE;
-        xQueueSend(g_display_queue, &electricity_event, 0);
+        xQueueSend(g_main_queue, &electricity_event, 0);
     }
 
     // if (String(topic) == "weather/description") {
     //     portENTER_CRITICAL_ISR(&myMux);
-    //     messageTemp.toCharArray(weatherDescription, 35);
+    //     message_temp.toCharArray(weatherDescription, 35);
     //     portEXIT_CRITICAL_ISR(&myMux);
     // }   
     
     // if (String(topic) == "weather/outsidetemp") {
     //     portENTER_CRITICAL_ISR(&myMux);
-    //     weatherTemperature = messageTemp.toFloat();
+    //     weatherTemperature = message_temp.toFloat();
     //     portEXIT_CRITICAL_ISR(&myMux);
     // }
 }

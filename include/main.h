@@ -39,9 +39,9 @@ typedef struct {
 
 
 
-void displayTask(void *parameter);
+void display_task(void *parameter);
 void updateLog(const char *msg);
-void updateLocalTime(void);
+void update_local_time(void);
 void setSolarGenerationFlag (bool setting);
 void setGridImportFlag (bool setting);
 void setGridExportFlag (bool setting);
