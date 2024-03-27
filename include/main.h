@@ -40,16 +40,4 @@ typedef struct {
 
 
 void display_task(void *parameter);
-void updateLog(const char *msg);
 void update_local_time(void);
-void setSolarGenerationFlag (bool setting);
-void setGridImportFlag (bool setting);
-void setGridExportFlag (bool setting);
-void setWaterTankFlag (bool setting);
-void setPVNow(int pv);
-void setPVToday(float total);
-void setWTNow(int pv);
-void setWTToday(int total);
-void setExportNow(int pv);
-void setImportNow(int grid);
-

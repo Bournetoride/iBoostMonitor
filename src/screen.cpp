@@ -37,7 +37,6 @@ assert failed: xQueueGenericSend queue.c:832 (pxQueue->pcHead != ((void *)0) || 
 */
 #include "main.h"
 #include "TFT_eSPI.h"
-//#include "ESP32MQTTClient.h"
 #include "my_ringbuf.h"
 
 /*
@@ -92,19 +91,19 @@ assert failed: xQueueGenericSend queue.c:832 (pxQueue->pcHead != ((void *)0) || 
 //
 
 // Logging tag
-static const char* TAGS = "LCD";
+static const char* TAGS = "SCREEN";
 
 static TFT_eSPI tft = TFT_eSPI();              // TFT object
 
-static TFT_eSprite lineSprite = TFT_eSprite(&tft);    // Sprite object
-static TFT_eSprite rightArrowSprite = TFT_eSprite(&tft);    // Sprite object
-static TFT_eSprite leftArrowSprite = TFT_eSprite(&tft);    // Sprite object
-static TFT_eSprite fillFrameSprite = TFT_eSprite(&tft);    // Sprite object
-static TFT_eSprite logSprite = TFT_eSprite(&tft);    // Sprite object for log area
-static TFT_eSprite infoSprite = TFT_eSprite(&tft);    // Sprite object for info area
-static TFT_eSprite green_dot_sprite = TFT_eSprite(&tft);
+static TFT_eSprite horizontal_line_sprite = TFT_eSprite(&tft);    // Sprite object
+static TFT_eSprite vertical_line_sprite = TFT_eSprite(&tft);    // Sprite object
+static TFT_eSprite log_sprite = TFT_eSprite(&tft);    // Sprite object for log area
+static TFT_eSprite info_sprite = TFT_eSprite(&tft);    // Sprite object for info area
+static TFT_eSprite solar_dot_sprite = TFT_eSprite(&tft);
 static TFT_eSprite clear_dot_sprite = TFT_eSprite(&tft);
-static TFT_eSprite import_dot_sprite = TFT_eSprite(&tft);
+static TFT_eSprite water_tank_dot_sprite = TFT_eSprite(&tft);
+static TFT_eSprite grid_dot_sprite = TFT_eSprite(&tft);
+
 
 // TFT specific defines
 //#define TOUCH_CS 21             // Touch CS to PIN 21 for VSPI, PIN 4 for HSPI
@@ -116,7 +115,7 @@ static TFT_eSprite import_dot_sprite = TFT_eSprite(&tft);
 #define TFT_BACKGROUND 0x3189 // 0x2969 // 0x4a31 // TFT_BLACK
 #define TFT_FOREGROUND TFT_WHITE
 #define TFT_WATERTANK_HOT TFT_RED
-#define TFT_WATERTANK_WARM TFT_PURPLE
+#define TFT_WATERTANK_WARM TFT_VIOLET
 #define TFT_WATERTANK_COLD TFT_BLUE
 
 // #define LABEL1_FONT &FreeSansOblique12pt7b  // Key label font 1
@@ -135,6 +134,9 @@ TFT_eSPI_Button key[1];     // TFT_eSPI button class
 #define MAX_COL 54        // maximum number of columns (tft.width() / COL_WIDTH);
 #define MAX_COL_DOT6 32   // MAX_COL * 0.6
 
+#define WT_X 222          // Water tank x coordinates
+#define WT_Y 180          // Water tank y coordinates
+
 static int col_pos[MAX_COL];
 static int chr_map[MAX_COL][MAX_CHR];
 static byte color_map[MAX_COL][MAX_CHR];
@@ -145,13 +147,13 @@ static int color;
 //
 
 // Animation
-static int sun_x = 100;      // Sun x y
-static int sun_y = 105;
-static int grid_x = 260;
-static int grid_y = 105;
+static int sun_x = 91;      // Sun x y
+static int sun_y = 70;
+static int grid_x = 276;
+static int grid_y = 70;
 static int water_x = 105;
 static int water_y = 170;
-static int width = 83;    // Width of drawing space minus width of arrow 
+static int width = 104;    // Width of drawing space minus width of arrow/dot 
 static int step = 1;       // How far to move the triangle each iteration
 //
 
@@ -167,7 +169,7 @@ static bool b_touch_screen_pressed = false;
 // Clog init
 static const uint16_t max_entries = 7;
 static const uint16_t max_entry_chars = 44;
-static CLOG_NEW myLog1(max_entries, max_entry_chars, NO_TRIGGER, WRAP);
+static CLOG_NEW my_log(max_entries, max_entry_chars, NO_TRIGGER, WRAP);
 static bool b_update_logging = false;
 //
 
@@ -225,14 +227,16 @@ enum alignment {
 
 // Function defenitions
 static void initialise_screen(void);
+static void initialise_alternate_screen(void);
 static void draw_buttons(void);
 static void show_message(String msg, int x, int y, int textSize, int font);
 static void draw_house(int x, int y);
 static void draw_pylon(int x, int y);
+static void draw_solar_panel(int x, int y);
 static void draw_sun(int x, int y);
 static void draw_water_tank(int x, int y);
 static void fill_water_tank(int temperature);
-static void animation(void);
+static void animate(void);
 static void matrix(void);
 static void touch(void);
 static void setup_screen_saver(void);
@@ -240,7 +244,7 @@ static void draw_string(int x, int y, String text, alignment align);
 static void electricity_event_handler(void);
 
 
-static uint32_t inactiveRunTime = -99999;  // inactivity run time timer
+static uint32_t inactive_timer = -99999;  // inactivity run time timer
 
 static bool b_screen_saver_is_active = false;     // Is the screen saver active or not
 
@@ -284,53 +288,48 @@ void display_task(void *parameter) {
     tft.setTextSize(2);
 
     // Create the Sprites
-    logSprite.createSprite(270, 75);
-    logSprite.fillSprite(TFT_BACKGROUND);
-    infoSprite.createSprite(150, 75);
-    infoSprite.fillSprite(TFT_BACKGROUND);
+    log_sprite.createSprite(270, 75);
+    log_sprite.fillSprite(TFT_BACKGROUND);
+    info_sprite.createSprite(150, 75);
+    info_sprite.fillSprite(TFT_BACKGROUND);
     
     // Sprites for animations
-    lineSprite.createSprite(95, 1);
-    rightArrowSprite.createSprite(12, 21);
-    leftArrowSprite.createSprite(12, 21);
-    fillFrameSprite.createSprite(12, 21);
-    lineSprite.fillSprite(TFT_BACKGROUND);
-    rightArrowSprite.fillSprite(TFT_BACKGROUND);
-    leftArrowSprite.fillSprite(TFT_BACKGROUND);
-    fillFrameSprite.fillSprite(TFT_BACKGROUND);
+    horizontal_line_sprite.createSprite(114, 1);
+    vertical_line_sprite.createSprite(1, 39);
+    horizontal_line_sprite.fillSprite(TFT_BACKGROUND);
+    vertical_line_sprite.fillSprite(TFT_BACKGROUND);
 
-    green_dot_sprite.createSprite(10, 10);
-    green_dot_sprite.fillSprite(TFT_BACKGROUND);
-    green_dot_sprite.drawLine(0, 5, 9, 5, TFT_LIGHTGREY);
-    green_dot_sprite.fillSmoothCircle(5, 5, 4, TFT_GREEN_ENERGY);
+    solar_dot_sprite.createSprite(10, 10);
+    solar_dot_sprite.fillSprite(TFT_BACKGROUND);
+    solar_dot_sprite.drawLine(0, 5, 9, 5, TFT_GREEN_ENERGY);
+    solar_dot_sprite.fillSmoothCircle(5, 5, 4, TFT_GREEN_ENERGY);
 
-    import_dot_sprite.createSprite(10, 10);
-    import_dot_sprite.fillSprite(TFT_BACKGROUND);
-    import_dot_sprite.drawLine(0, 5, 9, 5, TFT_LIGHTGREY);
-    import_dot_sprite.fillSmoothCircle(5, 5, 4, TFT_RED);
+    grid_dot_sprite.createSprite(10, 10);
+    grid_dot_sprite.fillSprite(TFT_BACKGROUND);
+    grid_dot_sprite.drawLine(0, 5, 9, 5, TFT_ORANGE);
+    grid_dot_sprite.fillSmoothCircle(5, 5, 4, TFT_ORANGE);
+
+    water_tank_dot_sprite.createSprite(10, 10);
+    water_tank_dot_sprite.fillSprite(TFT_BACKGROUND);
+    water_tank_dot_sprite.drawLine(5, 0, 5, 9, TFT_VIOLET);
+    water_tank_dot_sprite.fillSmoothCircle(5, 5, 4, TFT_VIOLET);
 
     clear_dot_sprite.createSprite(10, 10);
     clear_dot_sprite.fillSprite(TFT_BACKGROUND);
-    clear_dot_sprite.drawLine(0, 5, 5, 5, TFT_LIGHTGREY);
+    clear_dot_sprite.drawLine(0, 5, 10, 5, TFT_GREEN_ENERGY);
 
-    lineSprite.drawLine(0, 0, 95, 0, TFT_LIGHTGREY);
-
-    rightArrowSprite.fillTriangle(11, 10, 1, 0, 1, 20, TFT_GREEN_ENERGY);  // > small right pointing sideways triangle
-    rightArrowSprite.drawPixel(0, 10, TFT_LIGHTGREY);    
-
-    leftArrowSprite.fillTriangle(0, 10, 10, 0, 10, 20, TFT_RED);  // < small left pointing sideways triangle
-    leftArrowSprite.drawPixel(11, 10, TFT_LIGHTGREY);    
-
-    fillFrameSprite.drawLine(0, 10, 11, 10, TFT_LIGHTGREY);
-
+    vertical_line_sprite.drawLine(0, 0, 0, 39, TFT_VIOLET);
+    
     initialise_screen(); 
+    
+    //initialise_alternate_screen(); 
 
-    // green_dot_sprite.pushSprite(30, 30);
-    // import_dot_sprite.pushSprite(30, 50);
+    // solar_dot_sprite.pushSprite(30, 30);
+    // water_tank_dot_sprite.pushSprite(30, 50);
 
     ESP_LOGI(TAGS, "Display Initialisation Complete");
 
-    inactiveRunTime = millis();     // start inactivity timer for turning on the screen saver
+    inactive_timer = millis();     // start inactivity timer for turning on the screen saver
 
     for ( ;; ) {
         if (b_screen_saver_is_active) {
@@ -341,7 +340,7 @@ void display_task(void *parameter) {
         } else {
             if (solar.b_update_pv_today) {  
                 // for testing only, need to move to own function and a sprite
-                tft.setCursor(110, 45, 4);   // position and font
+                tft.setCursor(213, 25, 2);   // position and font
                 tft.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
                 tft.setTextSize(1);
                 tft.print(solar.pv_today);
@@ -354,7 +353,7 @@ void display_task(void *parameter) {
 
             if (solar.b_update_pv_now) {
                 // for testing only, need to move to own function and a sprite
-                tft.setCursor(110, 85, 2);   // position and font
+                tft.setCursor(128, 86, 2);   // position and font
                 tft.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
                 tft.setTextSize(1);
                 tft.print(solar.pv_now);
@@ -367,7 +366,7 @@ void display_task(void *parameter) {
 
             if (solar.b_update_wt_now) {
                 // for testing only, need to move to own function and a sprite
-                tft.setCursor(110, 150, 2);   // position and font
+                tft.setCursor(108, 150, 2);   // position and font
                 tft.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
                 tft.setTextSize(1);
                 tft.print(solar.wt_now);
@@ -380,9 +379,9 @@ void display_task(void *parameter) {
 
             if (solar.b_update_wt_today) {
                 // for testing only, need to move to own function and a sprite
-                tft.setCursor(110, 205, 1);   // position and font
+                tft.setCursor(216, 226, 2);   // position and font
                 tft.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
-                tft.setTextSize(2);
+                tft.setTextSize(1);
                 tft.printf("%.2f kW", solar.wt_today);
                 
                 portENTER_CRITICAL(&myMux);
@@ -392,7 +391,7 @@ void display_task(void *parameter) {
 
             if (solar.b_update_grid) {
                 // for testing only, need to move to own function and a sprite
-                tft.setCursor(290, 85, 2);   // position and font
+                tft.setCursor(312, 86, 2);   // position and font
                 tft.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
                 tft.setTextSize(1);
                 if (solar.b_import_flag) {
@@ -402,35 +401,37 @@ void display_task(void *parameter) {
                 }
                 tft.print(" W   ");
 
-                portENTER_CRITICAL(&myMux);
                 solar.b_update_grid = false;
-                portEXIT_CRITICAL(&myMux);
             }
 
             if (b_update_logging) {
-                logSprite.fillSprite(TFT_BACKGROUND);
-                logSprite.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
-                logSprite.setTextFont(0);
+                log_sprite.fillSprite(TFT_BACKGROUND);
+                log_sprite.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
+                log_sprite.setTextFont(0);
 
                 //portENTER_CRITICAL(&myMux);
-                for (int i = 0, y = 3; i < myLog1.numEntries; i++, y+=10) {
-                    logSprite.setCursor(5, y);
-                    logSprite.print(myLog1.get(i));
+                for (int i = 0, y = 3; i < my_log.numEntries; i++, y+=10) {
+                    log_sprite.setCursor(5, y);
+                    log_sprite.print(my_log.get(i));
                 }
 
-                logSprite.pushSprite(211, 246);
+                log_sprite.pushSprite(211, 246);
 
                 b_update_logging = false;
-                //portEXIT_CRITICAL(&myMux);
+
+                /* In production version only update/important messages will be logged,
+                   if the screensaver isn't active then reset timer for activation of
+                   the screensaver. 
+                */
+                inactive_timer = millis();     // reset inactivity timer to now
             }
 
             if (millis() - check_animation >= update_animation) {  // time has elapsed, update display
                 check_animation = millis();
-                animation();
+                animate();
             }
 
-            if (millis() >= inactiveRunTime + inactive) {       // We've been inactive for 'n' minutes, start screensaver
-//                updateLog("No activity, start screen saver");
+            if (millis() >= inactive_timer + inactive) {       // We've been inactive for 'n' minutes, start screensaver
                 strcpy(tx_item, "No activity, start screen saver");
                 res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
                 if (res != pdTRUE) {
@@ -456,7 +457,7 @@ void display_task(void *parameter) {
             ESP_LOGI(TAGS, "Retrieved item from ringbuffer");
 
             // Add time to message then add to CLOG
-            CLOG(myLog1.add(), "%s %s", time_buffer, item);
+            CLOG(my_log.add(), "%s %s", time_buffer, item);
             b_update_logging = true;   // set flag so log is redrawn
 
             //Return Item
@@ -476,59 +477,63 @@ void display_task(void *parameter) {
  * heating, grid import or export.
  * 
  */
-static void animation(void) {
-    static int sunStartPosition = sun_x;       // 
-    static int gridImportStartPosition = grid_x;     //
-    static int gridExportStartPosition = grid_x;     //
-    static int waterStartPosition = water_x;     //
-    static int sunArrow = sunStartPosition + 40;                // solar generation arrow start point 
-    static int gridImportArrow = gridImportStartPosition + width;      // grid import arrow start point
-    static int gridExportArrow = gridExportStartPosition;      // grid export arrow start point
-    static int waterArrow = waterStartPosition + 15;            // water heating arrow start point - move so it's not the same position as sum
+static void animate(void) {
+    static int sun_start_position = sun_x;       // 
+    static int grid_import_start_position = grid_x;     //
+    static int grid_export_start_position = grid_x;     //
+    //static int water_start_position = water_x;     //
+    static int water_start_position = 116;     // y
+    static int sunArrow = sun_start_position;                // solar generation arrow start point 
+    static int gridImportArrow = grid_import_start_position + width;      // grid import arrow start point
+    static int gridExportArrow = grid_export_start_position;      // grid export arrow start point
+    static int waterArrow = water_start_position;            // water heating arrow start point
 
-    // Solar generation arrow
+    // Solar generation dot
     if (solar.b_solar_flag) {
-        rightArrowSprite.pushSprite(sunArrow, sun_y);
+        solar_dot_sprite.pushSprite(sunArrow, sun_y+5);
         sunArrow += step;
-        if (sunArrow > (width + sunStartPosition)) {
-            fillFrameSprite.pushSprite(sunArrow-step, sun_y);
-            sunArrow = sunStartPosition;
+        if (sunArrow > (width + sun_start_position)) {
+            clear_dot_sprite.fillSprite(TFT_BACKGROUND);
+            clear_dot_sprite.drawLine(0, 5, 10, 5, TFT_GREEN_ENERGY);          
+            clear_dot_sprite.pushSprite(sunArrow-step, sun_y+5);
+            sunArrow = sun_start_position;
         }         
-        // green_dot_sprite.pushSprite(sunArrow, sun_y+5);
-        // sunArrow += step;
-        // if (sunArrow > ((width + 5) + sunStartPosition)) {
-        //     clear_dot_sprite.pushSprite(sunArrow-(step), sun_y+5);
-        //     sunArrow = sunStartPosition;
-        // }         
     }
 
-    // Grid import arrow
+    // Grid import dot
     if (solar.b_import_flag) {
-        leftArrowSprite.pushSprite(gridImportArrow, grid_y);
+        grid_dot_sprite.pushSprite(gridImportArrow, grid_y+5);
         gridImportArrow -= step;
-        if (gridImportArrow < gridImportStartPosition) {
-            fillFrameSprite.pushSprite(gridImportArrow+step, grid_y);
-            gridImportArrow = gridImportStartPosition + width;
+        if (gridImportArrow < grid_import_start_position) {
+            clear_dot_sprite.fillSprite(TFT_BACKGROUND);
+            clear_dot_sprite.drawLine(0, 5, 10, 5, TFT_ORANGE);          
+            clear_dot_sprite.pushSprite(gridImportArrow+step, grid_y+5);
+            gridImportArrow = grid_import_start_position + width;
         } 
     }
 
-    // Grid export arrow
+    // Grid export dot
     if (solar.b_export_flag) {
-        rightArrowSprite.pushSprite(gridExportArrow, grid_y);
+        grid_dot_sprite.pushSprite(gridExportArrow, grid_y+5);
         gridExportArrow += step;
-        if (gridExportArrow > gridExportStartPosition + width) {
-            fillFrameSprite.pushSprite(gridExportArrow-step, grid_y);
-            gridExportArrow = gridExportStartPosition;
+        if (gridExportArrow > grid_export_start_position + width) {
+            clear_dot_sprite.fillSprite(TFT_BACKGROUND);
+            clear_dot_sprite.drawLine(0, 5, 10, 5, TFT_ORANGE);          
+            clear_dot_sprite.pushSprite(gridExportArrow-step, grid_y+5);
+            gridExportArrow = grid_export_start_position;
         } 
     }
 
-    // Water tank heating by solar arrow
+    // Water tank heating by solar animation
     if (solar.b_water_tank_flag) {
-        rightArrowSprite.pushSprite(waterArrow, water_y);
+        water_tank_dot_sprite.pushSprite(234, waterArrow);
         waterArrow += step;
-        if (waterArrow > waterStartPosition + width) {
-            fillFrameSprite.pushSprite(waterArrow-step, water_y);
-            waterArrow = waterStartPosition;
+        if (waterArrow > water_start_position + 29) {
+            clear_dot_sprite.fillSprite(TFT_BACKGROUND);
+            clear_dot_sprite.drawLine(5, 0, 5, 10, TFT_VIOLET);          
+            clear_dot_sprite.pushSprite(234, waterArrow-step);
+            //vertical_line_sprite.pushSprite(239, 116);
+            waterArrow = water_start_position;
         } 
     }
 }
@@ -550,7 +555,6 @@ static void touch(void) {
         key[0].press(false);
         if (!b_screen_saver_is_active) {
             ESP_LOGI(TAGS, "Screen saver started by user");
-            // updateLog("Screen saver started by user");
             char tx_item[] = "Screen saver started by user";
             UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
             if (res != pdTRUE) {
@@ -561,9 +565,8 @@ static void touch(void) {
         } else if (b_screen_saver_is_active) {
             ESP_LOGI(TAGS, "Stop screen saver");
             b_screen_saver_is_active = false;
-            inactiveRunTime = millis();     // reset inactivity timer to now
+            inactive_timer = millis();     // reset inactivity timer to now
             initialise_screen();
-            //updateLog("Screen saver stopped by user");
             char tx_item[] = "Screen saver stopped by user";
             UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
             if (res != pdTRUE) {
@@ -599,7 +602,10 @@ static void electricity_event_handler(void) {
                 if (!solar.b_export_flag) {  // currently not showing exporting to grid arrow
                     solar.b_export_flag = true;
                     solar.b_import_flag = false;   // can not import if we are exporting
-
+                    // reset grid dot
+                    grid_dot_sprite.fillSprite(TFT_BACKGROUND);
+                    grid_dot_sprite.drawLine(0, 5, 9, 5, TFT_ORANGE);
+                    grid_dot_sprite.fillSmoothCircle(5, 5, 4, TFT_ORANGE);
                     // TODO: Send message to logging
                 }
             break;
@@ -610,7 +616,10 @@ static void electricity_event_handler(void) {
                 if (!solar.b_import_flag) {    // currently not show import arrow
                     solar.b_import_flag = true;
                     solar.b_export_flag = false;   // can not export if we are importing
-
+                    // reset grid dot
+                    grid_dot_sprite.fillSprite(TFT_BACKGROUND);
+                    grid_dot_sprite.drawLine(0, 5, 9, 5, TFT_ORANGE);
+                    grid_dot_sprite.fillSmoothCircle(4, 4, 4, TFT_ORANGE);                    
                     // TODO: Send message to logging
                 }
             break;
@@ -791,21 +800,67 @@ static void initialise_screen(void) {
     tft.drawLine(0, 245, 480, 245, TFT_FOREGROUND);
     tft.drawLine(210, 245, 210, 320, TFT_FOREGROUND);
 
-    draw_sun(65, 145);
-    draw_house(210, 130);
-    draw_pylon(380, 130);
-    draw_water_tank(213, 160);
+    tft.drawSmoothCircle(55, 80, 35, TFT_GREEN_ENERGY, TFT_BACKGROUND); // solar
+    tft.drawSmoothCircle(240, 80, 35, TFT_VIOLET, TFT_BACKGROUND); // house
+    tft.drawSmoothCircle(425, 80, 35, TFT_ORANGE, TFT_BACKGROUND); // pylon
+    tft.drawSmoothCircle(240, 190, 35, TFT_VIOLET, TFT_BACKGROUND); // water tank
 
-    lineSprite.pushSprite(sun_x, sun_y+10);
-    lineSprite.pushSprite(grid_x, grid_y+10);
-    lineSprite.pushSprite(water_x, water_y+10);
+    //draw_sun(57, 80);
+    draw_solar_panel(40, 64);
+    draw_house(239, 58); //222, 100
+    draw_pylon(415, 104);
+    draw_water_tank(WT_X, WT_Y);
+
+    horizontal_line_sprite.drawLine(0, 0, 114, 0, TFT_GREEN_ENERGY);   // solar to house
+    horizontal_line_sprite.pushSprite(sun_x, sun_y+10);
+    horizontal_line_sprite.drawLine(0, 0, 114, 0, TFT_ORANGE);         // house to grid
+    horizontal_line_sprite.pushSprite(grid_x, grid_y+10);
+    vertical_line_sprite.pushSprite(239, 116); //(water_x, water_y+10);
 
     tft.setCursor(75, 3, 1);   // position and font
     tft.setTextColor(TFT_BLACK, TFT_SKYBLUE);
     tft.setTextSize(2);
     tft.print("House Electricity Monitor");
 
-    logSprite.pushSprite(211, 246);
+    log_sprite.pushSprite(211, 246);
+    
+    //showMessage("13:43:23", 5, 250, 1, 2);
+    show_message("Sun 17 Mar 24", 110, 250, 1, 2);
+
+    show_message("Water Tank: Heating by solar", 5, 270, 1, 2);
+    show_message("Sender Battery: OK", 5, 288, 1, 2);
+
+    show_message("IP: 192.168.5.67", 5, 310, 0, 1);
+    show_message("LQI: 23", 160, 310, 0, 1);
+}
+
+/**
+ * @brief Set up the screen. This will be called at program startup and when the screen
+ * saver ends.  This will draw all static elements, i.e. house, sun, pylon, hot water
+ * tank etc.
+ */
+static void initialise_alternate_screen(void) {
+    tft.fillScreen(TFT_BACKGROUND);
+
+    // Define area at top of screen for date, time etc.
+    tft.fillRect(0, 20, 480, 2, TFT_BLACK);
+    tft.fillRect(0, 0, 480, 20, TFT_SKYBLUE);
+
+    // Define message area at the bottom
+    tft.drawLine(0, 245, 480, 245, TFT_FOREGROUND);
+    tft.drawLine(210, 245, 210, 320, TFT_FOREGROUND);
+
+    tft.drawSmoothCircle(234, 60, 25, TFT_DARKCYAN, TFT_BACKGROUND);
+    tft.drawSmoothCircle(50, 110, 25, TFT_VIOLET, TFT_BACKGROUND);
+    tft.drawSmoothCircle(420, 110, 25, TFT_BLUE, TFT_BACKGROUND);
+    tft.drawSmoothCircle(420, 200, 25, TFT_BLUE, TFT_BACKGROUND);
+
+    tft.setCursor(75, 3, 1);   // position and font
+    tft.setTextColor(TFT_BLACK, TFT_SKYBLUE);
+    tft.setTextSize(2);
+    tft.print("House Electricity Monitor");
+
+    log_sprite.pushSprite(211, 246);
 
     //showMessage("13:43:23", 5, 250, 1, 2);
     show_message("Sun 17 Mar 24", 110, 250, 1, 2);
@@ -815,34 +870,6 @@ static void initialise_screen(void) {
 
     show_message("IP: 192.168.5.67", 5, 310, 0, 1);
     show_message("LQI: 23", 160, 310, 0, 1);
-
-    // Demo values
-
-    // Solar generation now
-    // tft.setCursor(110, 85, 2);   // position and font
-    // tft.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
-    // tft.setTextSize(1);
-    // tft.print("2.34 kW");
-
-    // // Electricity import/export values
-    // tft.setCursor(280, 85, 2);   // position and font
-    // tft.print("1.67 kW");
-
-    // // Total solar generated today
-    // // tft.setCursor(100, 45, 4);   // position and font
-    // // tft.setTextSize(1);
-    // // tft.print("12.67 kWh");
-
-    // // Water import to heat water
-    // tft.setCursor(110, 150, 2);   // position and font
-    // tft.setTextSize(1);
-    // tft.print("0.89 kW");
-
-    // // Total saved today to heat water
-    // tft.setCursor(110, 205, 1);   // position and font
-    // tft.setTextSize(2);
-    // tft.print("2.57 kWh");
-
 }
 
 /**
@@ -881,55 +908,27 @@ static void show_message(String msg, int x, int y, int textSize, int font) {
     tft.print(msg);
 }
 
-// /**
-//  * @brief add item to clog
-//  * 
-//  */
-// void updateLog(const char *msg) {
-//     portENTER_CRITICAL(&myMux);
-    
-//     // Add time to message then add to CLOG
-//     CLOG(myLog1.add(), "%s %s", timeStringBuff, msg);
-    
-//     b_update_logging = true;
-//     portEXIT_CRITICAL(&myMux);
-// }
-
-// void printLogging(void) {
-//     int y = 3; // top of log area
-
-//     logSprite.fillSprite(TFT_BACKGROUND);
-//     logSprite.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
-//     logSprite.setTextFont(0);
-//     for (uint8_t i = 0; i < myLog1.numEntries; i++, y+=10) {
-//         logSprite.setCursor(5, y);
-//         logSprite.print(myLog1.get(i));
-//     }
-
-//     logSprite.pushSprite(211, 246);
-//     portENTER_CRITICAL(&myMux);
-//     b_update_logging = true;
-//     portEXIT_CRITICAL(&myMux);
-
-// }
-
 /**
  * @brief Draw a house where xy is the bottom left of the house
  * 
- * @param x Bottom left x of house
- * @param y Bottom left y of house
+ * @param x Roof apex x of house
+ * @param y Roof apex y of house
  */
 static void draw_house(int x, int y) {
-    tft.drawLine(x, y, x+36, y, TFT_FOREGROUND);      // Bottom
-    tft.drawLine(x, y, x, y-30, TFT_FOREGROUND);      // Left wall
-    tft.drawLine(x+36, y, x+36, y-30, TFT_FOREGROUND);      // Right wall
-    tft.drawLine(x-2, y-28, x+18, y-45, TFT_FOREGROUND);      // Left angled roof
-    tft.drawLine(x+38, y-28, x+18, y-45, TFT_FOREGROUND);      // Right angled roof
+    // tft.drawLine(x, y, x+36, y, TFT_FOREGROUND);      // Bottom
+    // tft.drawLine(x, y, x, y-30, TFT_FOREGROUND);      // Left wall
+    // tft.drawLine(x+36, y, x+36, y-30, TFT_FOREGROUND);      // Right wall
+    // tft.drawLine(x-2, y-28, x+18, y-45, TFT_FOREGROUND);      // Left angled roof
+    // tft.drawLine(x+38, y-28, x+18, y-45, TFT_FOREGROUND);      // Right angled roof
 
-    tft.drawRect(x+5, y-28, 8, 8, TFT_FOREGROUND);   // Left top window
-    tft.drawRect(x+23, y-28, 8, 8, TFT_FOREGROUND);   // Right top window
+    // tft.drawRect(x+5, y-28, 8, 8, TFT_FOREGROUND);   // Left top window
+    // tft.drawRect(x+23, y-28, 8, 8, TFT_FOREGROUND);   // Right top window
    
-    tft.drawRect(x+15, y-13, 8, 13, TFT_FOREGROUND);   // Door
+    // tft.drawRect(x+15, y-13, 8, 13, TFT_FOREGROUND);   // Door
+
+    tft.fillTriangle(x, y, x-20, y+18, x+20, y+18, TFT_WHITE); // roof
+    tft.fillRect(x-13, y+19, 27, 17, TFT_WHITE); // house body
+    tft.fillRect(x-5, y+24, 11, 14, TFT_BACKGROUND); // hole for door
 }
 
 /**
@@ -985,13 +984,39 @@ static void draw_pylon(int x, int y) {
 }
 
 /**
+ * @brief Draw a solar panel
+ * 
+ * @param x Display x coordinates
+ * @param y Display y coordinates
+ */
+static void draw_solar_panel(int x, int y) {
+    //x = 40 y= 64
+    // Solar panel outline
+    tft.drawSmoothRoundRect(x, y, 1, 1, 30, 26, TFT_WHITE, TFT_BACKGROUND);
+
+    tft.drawLine(x, y+6, x+30, y+6, TFT_WHITE); // across lines
+    tft.drawLine(x, y+13, x+30, y+13, TFT_WHITE);
+    tft.drawLine(x, y+19, x+30, y+19, TFT_WHITE);
+
+    tft.drawLine(x+8, y, x+8, y+26, TFT_WHITE); // down lines
+    tft.drawLine(x+15, y, x+15, y+26, TFT_WHITE);
+    tft.drawLine(x+23, y, x+23, y+26, TFT_WHITE);
+
+    tft.drawLine(x+12, y+26, x+12, y+32, TFT_WHITE); // left leg
+    tft.drawLine(x+18, y+26, x+18, y+32, TFT_WHITE); // right leg
+
+    tft.drawLine(x+12, y+32, x+9, y+32, TFT_WHITE); // left leg bottom
+    tft.drawLine(x+18, y+32, x+21, y+32, TFT_WHITE); // right leg bottom
+}
+
+/**
  * @brief Display the sun
  * 
  * @param x Display x coordinates
  * @param y Display y coordinates
  */
 static void draw_sun(int x, int y) {
-    int scale = 12;  // 6
+    int scale = 8;  // 6
 
     int linesize = 3;
     int dxo, dyo, dxi, dyi;
@@ -1022,7 +1047,6 @@ static void draw_sun(int x, int y) {
 }
 
 static void draw_water_tank(int x, int y) {
-//350, 160
     tft.drawRoundRect(x, y, 22, 33, 6, TFT_FOREGROUND);
     tft.fillRoundRect(x+1, y+1, 20, 31, 6, TFT_WATERTANK_COLD);
 
@@ -1053,15 +1077,15 @@ static void draw_water_tank(int x, int y) {
 static void fill_water_tank(int temperature) {
     switch (temperature) {
         case 0: // cold
-            tft.fillRoundRect(213+1, 160+1, 20, 31, 6, TFT_WATERTANK_COLD);
+            tft.fillRoundRect(WT_X+1, WT_Y+1, 20, 31, 6, TFT_WATERTANK_COLD);
         break;
 
         case 1: // warm
-            tft.fillRoundRect(213+1, 160+1, 20, 31, 6, TFT_WATERTANK_WARM);
+            tft.fillRoundRect(WT_X+1, WT_Y+1, 20, 31, 6, TFT_WATERTANK_WARM);
         break;
 
         case 2: // hot
-            tft.fillRoundRect(213+1, 160+1, 20, 31, 6, TFT_WATERTANK_HOT);
+            tft.fillRoundRect(WT_X+1, WT_Y+1, 20, 31, 6, TFT_WATERTANK_HOT);
         break;
     }
 }
@@ -1077,146 +1101,6 @@ void update_local_time(void) {
   // Update buffer with current time
   //strftime(date_time_buffer, sizeof(date_time_buffer), "%H:%M:%S %a %b %d %Y", &timeinfo);
   strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", &timeinfo);
-}
-
-/**
- * @brief Set the Solar Generation Flag object
- * 
- * @param setting Bool value to set flag, true solar generation
- */
-void setSolarGenerationFlag(bool setting) {
-    if (solar.b_solar_flag != setting) {
-        solar.b_solar_flag = setting;
-    }
-}
-
-/**
- * @brief Set the Grid Import Flag object. If importing is true, exporting
- * has to be false.
- * 
- * @param setting Bool value to set flag, true importing from grid
- */
-void setGridb_import_flag(bool setting) {
-    if (solar.b_import_flag != setting) {
-        solar.b_import_flag = setting;
-        if (solar.b_import_flag) {           // can't import and export at the same time
-            solar.b_export_flag = false;
-            
-            // updateLog("Importing from the grid");
-            char tx_item[] = "Importing from the grid";
-            UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
-            if (res != pdTRUE) {
-                ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
-            } 
-        }
-    }
-}
-
-/**
- * @brief Set the Grid Export Flag object. If exporting is true, importing has 
- * to be false.
- * 
- * @param setting Bool value to set flag, true if exporting to grid
- */
-void setGridb_export_flag(bool setting) {
-    if (solar.b_export_flag != setting) {
-        solar.b_export_flag = setting;
-        if (solar.b_export_flag) {           // can't import and export at the same time
-            solar.b_import_flag = false;
-//            updateLog("Exporting to the grid");
-            char tx_item[] = "Exporting to the grid";
-            UBaseType_t res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
-            if (res != pdTRUE) {
-                ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
-            }
-        }
-    }
-}
-
-/**
- * @brief Set the Water Tank Flag object. 
- *
- * @param setting Bool value to set flag, true if heating water tank via solar
- */
-void setb_water_tank_flag(bool setting) {
-    if (solar.b_water_tank_flag != setting)
-        solar.b_water_tank_flag = setting;
-}
-
-/**
- * @brief Set pv_now value - current solar (watts) being generated
- * 
- * @param pv Current value of PV (Watts)
- */
-void setpv_now(int pv) {
-    portENTER_CRITICAL(&myMux);
-    solar.pv_now = pv;
-    solar.b_update_pv_now = true;
-    portEXIT_CRITICAL(&myMux);
-}
-
-/**
- * @brief Set the Total Today object
- * 
- * @param total Total value of PV generated today (kW)
- */
-void setpv_today(float total) {
-    portENTER_CRITICAL(&myMux);
-    solar.pv_today = total;
-    solar.b_update_pv_today = true;
-    portEXIT_CRITICAL(&myMux);
-}
-
-/**
- * @brief Set wt_now object
- * 
- * @param pv Current valaue of PV being used now to heat water tank
-*/
-void setwt_now(int pv) {
-    portENTER_CRITICAL(&myMux);
-    solar.wt_now = pv;
-    solar.b_update_wt_now = true;
-    portEXIT_CRITICAL(&myMux);
-}
-
-/**
- * @brief Set the Total used to heat the how water tank object
- * 
- * @param total Total value of PV used today to heat the water tank (Watts)
- */
-void setwt_today(int total) {
-    portENTER_CRITICAL(&myMux);
-    if (total > 0) {
-        solar.wt_today = (float) total / 1000; //(float) temp;  // round to nearest value, 2 dicmal points
-    } else {
-        solar.wt_today = 0.00;
-    }
-    solar.b_update_wt_today = true;
-    portEXIT_CRITICAL(&myMux);
-}
-
-/**
- * @brief Set Export Now object
- * 
- * @param pv Current valaue of PV being exported to the grid
-*/
-void setexport_now(int pv) {
-    portENTER_CRITICAL(&myMux);
-    solar.export_now = pv;
-    solar.b_update_grid = true;
-    portEXIT_CRITICAL(&myMux);
-}
-
-/**
- * @brief Set Import Now object
- * 
- * @param pv Current valaue of electricity being imported from the grid
-*/
-void setimport_now(int grid) {
-    portENTER_CRITICAL(&myMux);
-    solar.import_now = grid;
-    solar.b_update_grid = true;
-    portEXIT_CRITICAL(&myMux);
 }
 
 /**
@@ -1244,16 +1128,3 @@ static void draw_string(int x, int y, String text, alignment align) {
     tft.setCursor(x, y + h);
     tft.print(text);
 }
-
-
-/*
-[731172][I][main.cpp:786] mqtt_callback(): [iBoost] MQTT topic: solar/pv_now, message: 266.0
-[731706][I][main.cpp:786] mqtt_callback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
-[733185][I][main.cpp:428] receive_packet_task(): [iBoost] Heating: 0 Watts  P1: 598323  Importing: 1534 Watts  P2: 21701
-[733193][I][main.cpp:465] receive_packet_task(): [iBoost] Heating by Solar = 0 Watts
-[733201][I][main.cpp:472] receive_packet_task(): [iBoost] Sender Battery OK
-[733207][I][main.cpp:477] receive_packet_task(): [iBoost] Today: 2583 Wh   Yesterday: 3388 Wh   Last 7 Days: 21701 Wh   Last 28 Days: 74012 Wh   Total: 1902312 Wh   Boost Time: 0
-[733225][I][main.cpp:503] receive_packet_task(): [iBoost] Published MQTT message: {"savedToday":2583,"hotWater":"Heating by Solar","battery":"OK"}
-[790468][I][main.cpp:786] mqtt_callback(): [iBoost] MQTT topic: solar/pv_now, message: 266.0
-[791000][I][main.cpp:786] mqtt_callback(): [iBoost] MQTT topic: solar/pvtotal, message: 7.5
-*/
