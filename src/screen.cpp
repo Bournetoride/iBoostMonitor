@@ -137,6 +137,12 @@ TFT_eSPI_Button key[1];     // TFT_eSPI button class
 #define WT_X 222          // Water tank x coordinates
 #define WT_Y 180          // Water tank y coordinates
 
+#define LQI_X 5           // LQI x coordinates
+#define LQI_Y 294         // LQI y coordinates
+
+#define BATTERY_X 190     // Battery x
+#define BATTERY_Y 296     // Battery y
+
 static int col_pos[MAX_COL];
 static int chr_map[MAX_COL][MAX_CHR];
 static byte color_map[MAX_COL][MAX_CHR];
@@ -173,12 +179,8 @@ static CLOG_NEW my_log(max_entries, max_entry_chars, NO_TRIGGER, WRAP);
 static bool b_update_logging = false;
 //
 
-// Ensure we don't change a value being changed somewhere else.  Needed as we are
-// using tasks / callback which could update at the wrong time!
-static portMUX_TYPE myMux = portMUX_INITIALIZER_UNLOCKED;
-
 volatile bool update = false;
-static char date_time_buffer[35];        // buffer for time and date on the display
+static char date_buffer[30] = {0};      // buffer for date on the display
 static char time_buffer[9] = {0};       // buffer for time on the display
 //
 
@@ -206,15 +208,20 @@ typedef struct {
     bool b_update_grid;          // Grid value has changed, doesn't matter if it is export/import
     bool b_update_wt_now;        // Water tank PV value has changed
     bool b_update_wt_today;      // Water tank PV total used today has changed
+    bool b_update_lqi;           // LQI indicator
+    bool b_update_battery;       // Update CT battery icon
 
-    int sender_battery_status;   // Status of the sender battery in the CT clamp
+    ib_info_t sender_battery_status;   // Status of the sender battery in the CT clamp
     int water_tank_status;       // Water tank status (OFF, Heating by Solar, HOT)
+
+    uint8_t lqi;                 // Radio LQI value
 } solar_t;
 
 // Initialise struct and set all flags to false, all other values will default to 0 in C99
 solar_t volatile solar = {.b_solar_flag = false, .b_water_tank_flag = false, .b_import_flag = false, .b_export_flag = false,
                             .b_update_pv_now = false, .b_update_pv_today = false, .b_update_grid = false, .b_update_wt_now = false, 
-                            .b_update_wt_today = false, .sender_battery_status = IB_BATTERY_LOW, .water_tank_status = IB_WT_OFF};
+                            .b_update_wt_today = false, .b_update_lqi = false, .b_update_battery = false, 
+                            .sender_battery_status = IB_BATTERY_LOW, .water_tank_status = IB_WT_OFF, .lqi = 255};
 //
 
 // Drawing related
@@ -242,11 +249,13 @@ static void touch(void);
 static void setup_screen_saver(void);
 static void draw_string(int x, int y, String text, alignment align);
 static void electricity_event_handler(void);
+static void draw_battery(int x, int y, ib_info_t battery_status);
+static void draw_signal_strength(int x, int y, uint8_t lqi);
 
 
 static uint32_t inactive_timer = -99999;  // inactivity run time timer
-
 static bool b_screen_saver_is_active = false;     // Is the screen saver active or not
+
 
 
 /**
@@ -266,7 +275,8 @@ void display_task(void *parameter) {
     char tx_item[50];
     UBaseType_t res = pdFALSE;
 
-        
+    bool b_show_date = true;            // Once we have the time, show the date, only needs to be run once
+
     memset(tx_item, '\0', sizeof(tx_item));
 
     // Set all chip selects high to astatic void bus contention during initialisation of each peripheral
@@ -346,9 +356,7 @@ void display_task(void *parameter) {
                 tft.print(solar.pv_today);
                 tft.print(" kW   ");
 
-                portENTER_CRITICAL(&myMux);
                 solar.b_update_pv_today = false;
-                portEXIT_CRITICAL(&myMux);
             }
 
             if (solar.b_update_pv_now) {
@@ -359,22 +367,18 @@ void display_task(void *parameter) {
                 tft.print(solar.pv_now);
                 tft.print(" W   ");
 
-                portENTER_CRITICAL(&myMux);
                 solar.b_update_pv_now = false;
-                portEXIT_CRITICAL(&myMux);
             }
 
             if (solar.b_update_wt_now) {
                 // for testing only, need to move to own function and a sprite
-                tft.setCursor(108, 150, 2);   // position and font
+                tft.setCursor(200, 140, 2);   // position and font
                 tft.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
                 tft.setTextSize(1);
                 tft.print(solar.wt_now);
                 tft.print(" W   ");
 
-                portENTER_CRITICAL(&myMux);
                 solar.b_update_wt_now = false;
-                portEXIT_CRITICAL(&myMux);
             }
 
             if (solar.b_update_wt_today) {
@@ -384,9 +388,7 @@ void display_task(void *parameter) {
                 tft.setTextSize(1);
                 tft.printf("%.2f kW", solar.wt_today);
                 
-                portENTER_CRITICAL(&myMux);
                 solar.b_update_wt_today = false;
-                portEXIT_CRITICAL(&myMux);
             }
 
             if (solar.b_update_grid) {
@@ -409,7 +411,6 @@ void display_task(void *parameter) {
                 log_sprite.setTextColor(TFT_FOREGROUND, TFT_BACKGROUND);
                 log_sprite.setTextFont(0);
 
-                //portENTER_CRITICAL(&myMux);
                 for (int i = 0, y = 3; i < my_log.numEntries; i++, y+=10) {
                     log_sprite.setCursor(5, y);
                     log_sprite.print(my_log.get(i));
@@ -424,6 +425,16 @@ void display_task(void *parameter) {
                    the screensaver. 
                 */
                 inactive_timer = millis();     // reset inactivity timer to now
+            }
+
+            if (solar.b_update_lqi) {
+                solar.b_update_lqi = false;
+                draw_signal_strength(LQI_X, LQI_Y, solar.lqi);
+            }
+
+            if (solar.b_update_battery) {
+                solar.b_update_battery = false;
+                draw_battery(BATTERY_X, BATTERY_Y, solar.sender_battery_status);
             }
 
             if (millis() - check_animation >= update_animation) {  // time has elapsed, update display
@@ -447,8 +458,17 @@ void display_task(void *parameter) {
             check_one_second = millis();
 
             update_local_time();
-            if (!b_screen_saver_is_active)
+            if (!b_screen_saver_is_active) {
                 show_message(time_buffer, 5, 250, 1, 2);
+                show_message(date_buffer, 95, 250, 1, 2);
+            }
+
+            // if (b_show_date) {
+            //     if (date_buffer[0] != '0') {
+            //         show_message(date_buffer, 95, 250, 1, 2);
+            //         b_show_date = false;
+            //     }
+            // }
         }
 
         //Receive an item from no-split ring buffer - used for logging purposes
@@ -593,11 +613,11 @@ static void electricity_event_handler(void) {
     // Receive information from other tasks to display on the screen
     if (xQueueReceive(g_main_queue, &electricity_event, (TickType_t)0) == pdPASS) {
         ESP_LOGI(TAGS, "displayQ Event: %d, watts: %f, info: %d", 
-                    electricity_event.event, electricity_event.watts, electricity_event.info);
+                    electricity_event.event, electricity_event.value, electricity_event.info);
         
         switch (electricity_event.event) {
             case SL_EXPORT:     // 0 - Export to grid
-                solar.export_now = electricity_event.watts;  // PV amount being exported to grid 
+                solar.export_now = electricity_event.value;  // PV amount being exported to grid 
                 solar.b_update_grid = true;
                 if (!solar.b_export_flag) {  // currently not showing exporting to grid arrow
                     solar.b_export_flag = true;
@@ -611,7 +631,7 @@ static void electricity_event_handler(void) {
             break;
 
             case SL_IMPORT:     // 1- Import from grid
-                solar.import_now = electricity_event.watts;  // Amount of electricity being imported
+                solar.import_now = electricity_event.value;  // Amount of electricity being imported
                 solar.b_update_grid = true;
                 if (!solar.b_import_flag) {    // currently not show import arrow
                     solar.b_import_flag = true;
@@ -625,7 +645,7 @@ static void electricity_event_handler(void) {
             break;
 
             case SL_NOW:        // 2 - Solar PV now
-                solar.pv_now = electricity_event.watts;  // PV now
+                solar.pv_now = electricity_event.value;  // PV now
                 if (solar.pv_now > 0) {
                     solar.b_solar_flag = true;
                 } else {
@@ -635,23 +655,23 @@ static void electricity_event_handler(void) {
             break;
 
             case SL_TODAY:      // 3 - Solar PV today
-                solar.pv_today = electricity_event.watts;  // PV today
+                solar.pv_today = electricity_event.value;  // PV today
                 solar.b_update_pv_today = true;
 
             break;
 
             case SL_WT_NOW:     // 4 - Solar water tank PV now
-                solar.wt_now = electricity_event.watts;
+                //solar.wt_now = electricity_event.value;
                 if (solar.wt_now > 0) {  // using pv to heat water
                     solar.b_water_tank_flag = true;
                 } else {
                     solar.b_water_tank_flag = false;
                 }
-                solar.b_update_wt_now = true;
+                //solar.b_update_wt_now = true;
             break;
             
             case SL_WT_TODAY:   // 5- Solar water tank PV today
-                solar.wt_today = electricity_event.watts;
+                solar.wt_today = electricity_event.value;
                 if (solar.wt_today > 0) {
                     solar.wt_today /= 1000;  // Want value as n.nn kW
                 } else {
@@ -665,6 +685,7 @@ static void electricity_event_handler(void) {
                     switch (electricity_event.info) {
                         case IB_BATTERY_OK:
                             solar.sender_battery_status = electricity_event.info;
+                            solar.b_update_battery = true;
                             strcpy(tx_item, "Sender battery: OK");
                             if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
                                 ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
@@ -673,6 +694,7 @@ static void electricity_event_handler(void) {
 
                         case IB_BATTERY_LOW:
                             solar.sender_battery_status = electricity_event.info;
+                            solar.b_update_battery = true;
                             strcpy(tx_item, "Warning, sender battery: LOW");
                             if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
                                 ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
@@ -713,6 +735,11 @@ static void electricity_event_handler(void) {
                         break;
                     }
                 }           
+            break;
+
+            case SL_LQI: // 8 - Link quality identifier - how good the radio signal is
+                solar.lqi = electricity_event.value;
+                solar.b_update_lqi = true;
             break;
         }
     }
@@ -810,6 +837,8 @@ static void initialise_screen(void) {
     draw_house(239, 58); //222, 100
     draw_pylon(415, 104);
     draw_water_tank(WT_X, WT_Y);
+    draw_signal_strength(LQI_X, LQI_Y, solar.lqi);
+    draw_battery(BATTERY_X, BATTERY_Y, solar.sender_battery_status);
 
     horizontal_line_sprite.drawLine(0, 0, 114, 0, TFT_GREEN_ENERGY);   // solar to house
     horizontal_line_sprite.pushSprite(sun_x, sun_y+10);
@@ -825,13 +854,13 @@ static void initialise_screen(void) {
     log_sprite.pushSprite(211, 246);
     
     //showMessage("13:43:23", 5, 250, 1, 2);
-    show_message("Sun 17 Mar 24", 110, 250, 1, 2);
+    // show_message("Sun 17 Mar 24", 110, 250, 1, 2);
 
-    show_message("Water Tank: Heating by solar", 5, 270, 1, 2);
-    show_message("Sender Battery: OK", 5, 288, 1, 2);
+    // show_message("Water Tank: Heating by solar", 5, 270, 1, 2);
+    // show_message("Sender Battery: OK", 5, 288, 1, 2);
 
-    show_message("IP: 192.168.5.67", 5, 310, 0, 1);
-    show_message("LQI: 23", 160, 310, 0, 1);
+    // show_message("IP: 192.168.5.67", 5, 310, 0, 1);
+    // show_message("LQI: 23", 160, 310, 0, 1);
 }
 
 /**
@@ -863,13 +892,13 @@ static void initialise_alternate_screen(void) {
     log_sprite.pushSprite(211, 246);
 
     //showMessage("13:43:23", 5, 250, 1, 2);
-    show_message("Sun 17 Mar 24", 110, 250, 1, 2);
+    // show_message("Sun 17 Mar 24", 110, 250, 1, 2);
 
-    show_message("Water Tank: Heating by solar", 5, 270, 1, 2);
-    show_message("Sender Battery: OK", 5, 288, 1, 2);
+    // show_message("Water Tank: Heating by solar", 5, 270, 1, 2);
+    // show_message("Sender Battery: OK", 5, 288, 1, 2);
 
-    show_message("IP: 192.168.5.67", 5, 310, 0, 1);
-    show_message("LQI: 23", 160, 310, 0, 1);
+    // show_message("IP: 192.168.5.67", 5, 310, 0, 1);
+    // show_message("LQI: 23", 160, 310, 0, 1);
 }
 
 /**
@@ -931,6 +960,53 @@ static void draw_house(int x, int y) {
     tft.fillRect(x-5, y+24, 11, 14, TFT_BACKGROUND); // hole for door
 }
 
+/**
+ * @brief Draw horizontal battery
+ * 
+ * @param x Bottom left x
+ * @param y Bottom left y
+ * @param battery_status Is battery ok or low, only 2 options we have
+ */
+static void draw_battery(int x, int y, ib_info_t battery_status) {
+    tft.drawSmoothRoundRect(x, y, 1, 1, 12, 18, TFT_WHITE, TFT_BACKGROUND);
+    tft.drawRect(x+3, y-2, 6, 2, TFT_WHITE); // positive
+
+    if (battery_status == IB_BATTERY_OK) {
+        tft.fillRect(x+1, y+4, 11, 14, TFT_WHITE); // 90%
+    } else {
+        tft.fillRect(x+1, y+15, 11, 3, TFT_WHITE); // 20%
+    }
+}
+
+/**
+ * @brief Draw signal strength
+ * 
+ * @param x Bottom left
+ * @param y Bottom left
+ * @param lqi Signal strength
+ */
+static void draw_signal_strength(int x, int y, uint8_t lqi) {
+    //50 , 200
+
+    // tft.fillRect(x, y+15, 3, 3, TFT_WHITE);
+    // tft.fillRect(x+5, y+11, 3, 6, TFT_WHITE);
+    // tft.fillRect(x+10, y+6, 3, 11, TFT_WHITE);
+    // tft.fillRect(x+15, y, 3, 17, TFT_WHITE);
+
+    tft.fillRect(x, y+15, 6, 6, TFT_WHITE); // first bar, always drawn
+
+    if (lqi < 6) {
+        tft.fillRect(x+9, y+10, 6, 11, TFT_WHITE); // second bar
+        tft.fillRect(x+18, y+5, 6, 16, TFT_WHITE); // third bar
+    } else if (lqi < 40) {
+        tft.fillRect(x+9, y+10, 6, 11, TFT_WHITE);
+        tft.drawRect(x+18, y+5, 6, 16, TFT_WHITE);
+    } else {
+        tft.drawRect(x+9, y+10, 6, 11, TFT_WHITE);
+        tft.drawRect(x+18, y+5, 6, 16, TFT_WHITE);
+    }
+
+}
 /**
  * @brief Draw an electricity pylon
  * 
@@ -1099,7 +1175,7 @@ void update_local_time(void) {
   }
 
   // Update buffer with current time
-  //strftime(date_time_buffer, sizeof(date_time_buffer), "%H:%M:%S %a %b %d %Y", &timeinfo);
+  strftime(date_buffer, sizeof(date_buffer), "%a %b %d %Y", &timeinfo);
   strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", &timeinfo);
 }
 

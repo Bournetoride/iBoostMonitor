@@ -14,7 +14,7 @@
 #define SS_PIN 5
 #define MISO_PIN 19
 
-#define MAGIC_NUMBER 390 // value used to conert iBoost value to watts
+#define MAGIC_NUMBER 360 // value used to conert iBoost value to watts
 
 CC1101 radio(SS_PIN,  MISO_PIN);
 
@@ -489,6 +489,11 @@ void receive_packet_task(void *parameter) {
                     iboost_information.b_is_address_valid = true;
 
                     ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboost_information.address[0], iboost_information.address[1]);
+
+                    electricity_event.event = SL_LQI;
+                    electricity_event.value = receive_lqi;
+                    electricity_event.info = IB_NONE;
+                    xQueueSend(g_main_queue, &electricity_event, 0);
                 }		
             }
 
@@ -527,11 +532,11 @@ void receive_packet_task(void *parameter) {
                 // Importing or exporting electricity
                 if (p1/MAGIC_NUMBER < 0) {   // exporting
                     electricity_event.event = SL_EXPORT;
-                    electricity_event.watts = abs(p1/MAGIC_NUMBER);
+                    electricity_event.value = abs(p1/MAGIC_NUMBER);
                     electricity_event.info = IB_NONE;
                 } else if (p1/MAGIC_NUMBER > 0){            // importing
                     electricity_event.event = SL_IMPORT;
-                    electricity_event.watts = p1/MAGIC_NUMBER;
+                    electricity_event.value = p1/MAGIC_NUMBER;
                     electricity_event.info = IB_NONE;
                 }
                 xQueueSend(g_main_queue, &electricity_event, 0);
@@ -547,7 +552,7 @@ void receive_packet_task(void *parameter) {
                         //if (iboost_information.today != p2) {   // only update display if changed
                             iboost_information.today = p2;
                             electricity_event.event = SL_WT_TODAY;
-                            electricity_event.watts = p2;
+                            electricity_event.value = p2;
                             electricity_event.info = IB_NONE;
                             xQueueSend(g_main_queue, &electricity_event, 0);
                         //} // TODO - check what happens with screensaver active
@@ -592,18 +597,18 @@ void receive_packet_task(void *parameter) {
                 if (b_is_cylinder_hot) {
                     doc["hotWater"] =  "HOT";                        
                     electricity_event.event = SL_WT_STATUS;
-                    electricity_event.watts = 0;
+                    electricity_event.value = 0;
                     electricity_event.info = IB_WT_HOT;
                 } else if (b_is_water_heating_by_solar) {
                     ESP_LOGI(TAG, "Heating by solar detected");
                     doc["hotWater"] =  "Heating by Solar";                        
                     electricity_event.event = SL_WT_NOW;
-                    electricity_event.watts = heating;          // equates to PV being used now
+                    electricity_event.value = heating;          // equates to PV being used now
                     electricity_event.info = IB_WT_HEATING;
                 } else {
                     doc["hotWater"] =  "Off";                        
                     electricity_event.event = SL_WT_STATUS;
-                    electricity_event.watts = 0;
+                    electricity_event.value = 0;
                     electricity_event.info = IB_WT_OFF;
                 }
                 xQueueSend(g_main_queue, &electricity_event, 0);
@@ -622,7 +627,7 @@ void receive_packet_task(void *parameter) {
                     electricity_event.info = IB_BATTERY_LOW;
                 }
                 electricity_event.event = SL_BATTERY;
-                electricity_event.watts = 0;
+                electricity_event.value = 0;
                 xQueueSend(g_main_queue, &electricity_event, 0);
 
                 xSemaphoreTake(keep_alive_mqtt_semaphore, portMAX_DELAY);
@@ -951,15 +956,19 @@ static void mqtt_callback(char* topic, byte* message, unsigned int length) {
     ESP_LOGI(TAG, "MQTT topic: %s, message: %s", topic, message_temp);
 
     if (String(topic) == "solar/pvnow") {
-        electricity_event.event = SL_NOW;
-        electricity_event.watts = message_temp.toFloat();
-        electricity_event.info = IB_NONE;
-        xQueueSend(g_main_queue, &electricity_event, 0);
+        // Seems to generate up to 35w even at night time, no need to 
+        // show it, not sure how true it is
+        if (message_temp.toFloat() > 35) {
+            electricity_event.event = SL_NOW;   
+            electricity_event.value = message_temp.toFloat();
+            electricity_event.info = IB_NONE;
+            xQueueSend(g_main_queue, &electricity_event, 0);
+        }
     }   
     
     if (String(topic) == "solar/pvtotal") {
         electricity_event.event = SL_TODAY;
-        electricity_event.watts = message_temp.toFloat();
+        electricity_event.value = message_temp.toFloat();
         electricity_event.info = IB_NONE;
         xQueueSend(g_main_queue, &electricity_event, 0);
     }
