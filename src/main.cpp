@@ -14,7 +14,7 @@
 #define SS_PIN 5
 #define MISO_PIN 19
 
-#define MAGIC_NUMBER 370 // value used to conert iBoost value to watts
+#define MAGIC_NUMBER 380 // value used to conert iBoost value to watts
 
 CC1101 radio(SS_PIN,  MISO_PIN);
 
@@ -74,6 +74,7 @@ typedef struct  {
     long last28;
     long total;
     uint8_t address[2];
+    uint8_t lqi;
     bool b_is_address_valid;
     bool b_sender_battery_ok;
 } iboost_information_t;
@@ -99,7 +100,7 @@ char weather_description[35];    // buffer for the current weather description f
 static portMUX_TYPE myMux = portMUX_INITIALIZER_UNLOCKED;
 
 iboost_information_t volatile iboost_information = {.today = 0, .yesterday = 0, .last7 = 0, .last28 = 0, .total = 0,
-                                            .b_is_address_valid = false, .b_sender_battery_ok = false};
+                                            .lqi = 255, .b_is_address_valid = false, .b_sender_battery_ok = false};
 
 /* Function prototypes */
 void blink_led_task(void *parameter);
@@ -157,7 +158,6 @@ void setup() {
     inbuilt_led_queue = xQueueCreate(queue_size, sizeof(bool));  // internal led
     if (inbuilt_led_queue == NULL) {
         ESP_LOGE(TAG, "Error creating inbuilt_led_queue");
-        // updateLog("Error creating inbuilt_led_queue");
         strcpy(tx_item, "Error creating inbuilt_led_queue");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
@@ -227,7 +227,6 @@ void setup() {
     x_returned = xTaskCreate(ws2812b_task, "ws2812b_task", 2048, NULL, tskIDLE_PRIORITY, &ws2812b_task_handle);
     if (x_returned != pdPASS) {
         ESP_LOGE(TAG, "Failed to create ws2812b_task");
-        // updateLog("Failed to create ws2812b_task");
         strcpy(tx_item, "Error creating ws2812b_task");
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
         if (res != pdTRUE) {
@@ -341,14 +340,14 @@ void ws2812b_task(void *parameter) {
             case TX_FAKE_BUDDY_REQUEST:
                 ws2812b.setPixelColor(0, pixel_colours.green);
                 ws2812b.show();
-                vTaskDelay(150 / portTICK_PERIOD_MS);
+                vTaskDelay(200 / portTICK_PERIOD_MS);
                 ws2812b.setPixelColor(0, pixel_colours.clear);
                 ws2812b.show();
                 break;
             case RECEIVE:
                 ws2812b.setPixelColor(1, pixel_colours.blue);
                 ws2812b.show();
-                vTaskDelay(150 / portTICK_PERIOD_MS);
+                vTaskDelay(200 / portTICK_PERIOD_MS);
                 ws2812b.setPixelColor(1, pixel_colours.clear);
                 ws2812b.show();
                 break;
@@ -442,7 +441,7 @@ void mqtt_keep_alive_task(void *parameter) {
 void receive_packet_task(void *parameter) { 
     byte packet[65];                // The CC1101 library sets the biggest packet at 61
     uint8_t address_lqi = 255;      // set received LQI to lowest value
-    uint8_t receive_lqi;            // signal strength test 
+    uint8_t receive_lqi = 0;        // signal strength test 
     JsonDocument doc;               // Create JSON message for sending via MQTT
     char msg[MSG_BUFFER_SIZE];      // MQTT message
     led_measage_t led = RECEIVE;
@@ -472,11 +471,15 @@ void receive_packet_task(void *parameter) {
 
                     ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboost_information.address[0], iboost_information.address[1]);
 
+                }
+
+                if (receive_lqi != iboost_information.lqi) {
+                    iboost_information.lqi = receive_lqi;
                     electricity_event.event = SL_LQI;
                     electricity_event.value = receive_lqi;
                     electricity_event.info = IB_NONE;
                     xQueueSend(g_main_queue, &electricity_event, 0);
-                }		
+                }
             }
 
             // main unit (sending info to iBoost Buddy)
@@ -635,7 +638,7 @@ void receive_packet_task(void *parameter) {
         }   
 
         xSemaphoreGive(radio_semaphore);
-        vTaskDelay(100 / portTICK_PERIOD_MS);       // Give some time so other tasks can run/complete
+        vTaskDelay(250 / portTICK_PERIOD_MS);       // Give some time so other tasks can run/complete
         // TODO - can we increase this delay or just use one task for tx and rx - no reason why not
     }
     vTaskDelete (NULL);
@@ -931,9 +934,9 @@ static void mqtt_callback(char* topic, byte* message, unsigned int length) {
     ESP_LOGI(TAG, "MQTT topic: %s, message: %s", topic, message_temp);
 
     if (String(topic) == "solar/pvnow") {
-        // Seems to generate up to 35w even at night time, no need to 
+        // Seems to generate up to 30w even at night time, no need to 
         // show it, not sure how true it is
-        if (message_temp.toFloat() > 35) {
+        if (message_temp.toFloat() > 30) {
             electricity_event.event = SL_NOW;   
             electricity_event.value = message_temp.toFloat();
             electricity_event.info = IB_NONE;
