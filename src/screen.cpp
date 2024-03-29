@@ -60,8 +60,7 @@
     13 T_DO (SPI MISO)      19 (same as LCD)
     14 T_IRQ                Currently not connected
 
-
-    HSPI port for ESP32 && TFT ILI9486 480x320 with touch & SD card reader
+    This project uses the HSPI port for ESP32 && TFT ILI9486 480x320 with touch & SD card reader
     LCD         ---->       ESP32 WROOM 32D
     1 Power                 3.3V
     2 Ground                GND
@@ -78,10 +77,16 @@
     13 T_DO (SPI MISO)      12 (same as LCD)
     14 T_IRQ                Currently not connected
 
+    CC1101      ---->       ESP32 - Using VSPI
+    Power                   3.3V
+    Ground                  GND
+    MOSI                    23
+    CLK                     18
+    MISO                    D19
+    GDO2                    Not currently used
+    GDO0                     2
+    CSN                      5
 */
-
-// freeRTOS - one task for all the screen activity
-//
 
 // Logging tag
 static const char* TAGS = "SCREEN";
@@ -95,7 +100,6 @@ static TFT_eSprite solar_dot_sprite = TFT_eSprite(&tft);
 static TFT_eSprite clear_dot_sprite = TFT_eSprite(&tft);
 static TFT_eSprite water_tank_dot_sprite = TFT_eSprite(&tft);
 static TFT_eSprite grid_dot_sprite = TFT_eSprite(&tft);
-
 
 // TFT specific defines
 //#define TOUCH_CS 21             // Touch CS to PIN 21 for VSPI, PIN 4 for HSPI
@@ -164,12 +168,10 @@ static const uint16_t max_entry_chars = 90;
 static CLOG_NEW my_log(max_entries, max_entry_chars, NO_TRIGGER, WRAP);
 static bool b_update_logging = false;
 //
+
 //
 static char time_buffer[9] = {0};       // buffer for time on the display
 //
-
-// Update solar values flags
-static bool b_update_total_today = false;
 
 // structure to hold all solar related information and flags. 
 typedef struct {
@@ -203,7 +205,7 @@ typedef struct {
     uint8_t lqi;                 // Radio LQI value
 } solar_t;
 
-// Initialise struct and set all flags to false, all other values will default to 0 in C99
+// Initialise struct, set all flags to false and default values
 solar_t volatile solar = {.b_solar_flag = false, .b_water_tank_flag = false, .b_import_flag = false, .b_export_flag = false,
                             .b_update_pv_now = false, .b_update_pv_today = false, .b_update_grid = false, .b_update_wt_now = false, 
                             .b_update_wt_today = false, .b_update_wt_colour = false, .b_clear_wt_dot = false, .b_update_lqi = false, 
@@ -224,6 +226,7 @@ static void animate(void);
 static void matrix(void);
 static void touch(void);
 static void setup_screen_saver(void);
+static void reset_screen_saver_colour_map(void);
 static void electricity_event_handler(void);
 static void draw_battery(int x, int y, ib_info_t battery_status);
 static void draw_lqi_signal_strength(int x, int y, uint8_t lqi);
@@ -233,10 +236,16 @@ static void print_wt_today(void);
 static void print_wt_now(void);
 
 // Screensaver related
+typedef enum {
+    SS_COLD         = 4,    // Colour shift for screen saver
+    SS_WARM         = 11,   
+    SS_HOT          = 14
+} ss_colour_t;  // colour shift for screen saver, 4 = blue (cold water), 11 = orange (warm water), 14 = red (hot water)
+
 static uint32_t inactive_timer = -99999;  // inactivity run time timer
 static bool b_screen_saver_is_active = false;     // Is the screen saver active or not
-static uint8_t screen_saver_colour_shift = 4;   // colour shift for screen saver, 4 = blue (cold water), 10 = green/orange (warm water), 14 = red (hot water)
-
+static uint8_t screen_saver_colour_shift = SS_COLD;   
+//
 
 /**
  * @brief Task to handle all things screen related.
@@ -265,7 +274,6 @@ void display_task(void *parameter) {
     digitalWrite(TFT_CS, HIGH);     // ********** TFT_eSPI screen library **********
 
     randomSeed(analogRead(A0));
-
 
     tft.init();
     tft.invertDisplay(false); // Required for my LCD TFT screen for color correction
@@ -306,7 +314,6 @@ void display_task(void *parameter) {
     clear_dot_sprite.drawLine(0, 5, 10, 5, TFT_GREEN_ENERGY);
 
     vertical_line_sprite.drawLine(0, 0, 0, 44, TFT_CYAN);
-    
 
     initialise_screen(); 
     
@@ -676,12 +683,15 @@ static void electricity_event_handler(void) {
                 // Set screen saver colour shift
 
                 if (solar.water_tank_status == IB_WT_HOT) {
-                    screen_saver_colour_shift = 14;
+                    screen_saver_colour_shift = SS_HOT;
+                    reset_screen_saver_colour_map();
                 } else if (solar.wt_today > 2) {
                     // More than 2000 watts of energy will give us warm water for a shower
-                    screen_saver_colour_shift = 10;
+                    screen_saver_colour_shift = SS_WARM;
+                    reset_screen_saver_colour_map();
                 } else {
-                    screen_saver_colour_shift = 4;
+                    screen_saver_colour_shift = SS_COLD;
+                    reset_screen_saver_colour_map();
                 }
             break;
 
@@ -723,9 +733,9 @@ static void electricity_event_handler(void) {
                             // Set screen saver colour shift
                             if (solar.wt_today > 2) {
                                 // More than 2000 watts of energy will give us warm water for a shower
-                                screen_saver_colour_shift = 10;
+                                screen_saver_colour_shift = SS_WARM;
                             } else {
-                                screen_saver_colour_shift = 4;
+                                screen_saver_colour_shift = SS_COLD;
                             }
                         break;
 
@@ -740,9 +750,9 @@ static void electricity_event_handler(void) {
                             // Set screen saver colour shift
                             if (solar.wt_today > 2) {
                                 // More than 2000 watts of energy will give us warm water for a shower
-                                screen_saver_colour_shift = 10;
+                                screen_saver_colour_shift = SS_WARM;
                             } else {
-                                screen_saver_colour_shift = 4;
+                                screen_saver_colour_shift = SS_COLD;
                             }
                             
                         break;
@@ -756,7 +766,7 @@ static void electricity_event_handler(void) {
                             } 
 
                             // Set screen saver colour shift
-                            screen_saver_colour_shift = 14;  // red screen saver
+                            screen_saver_colour_shift = SS_HOT;  // red screen saver
                         break;
                     }
                 }           
@@ -901,6 +911,20 @@ static void setup_screen_saver(void) {
             color_map[j][i] = 0;
         }
 
+        color_map[j][0] = 63;
+    }
+}
+
+/**
+ * @brief Reset the screen saver colour map, needed as the water is heated by PV
+ * so that we can indicate to the user the heat of the water when the screen saver
+ * is active
+ */
+static void reset_screen_saver_colour_map(void) {
+    for (int j = 0; j < MAX_COL; j++) {
+        for (int i = 0; i < MAX_CHR; i++) {
+            color_map[j][i] = 0;
+        }
         color_map[j][0] = 63;
     }
 }
@@ -1074,11 +1098,11 @@ static void draw_water_tank(int x, int y) {
 
     // water - check logic if we're coming out of screen saver mode
     switch (screen_saver_colour_shift) {
-        case 10: // warm
+        case SS_WARM: // warm
             fill_water_tank(1);
         break;
 
-        case 14: // hot
+        case SS_HOT: // hot
             fill_water_tank(2);
         break;
 
@@ -1114,9 +1138,10 @@ static void fill_water_tank(int temperature) {
         break;
     }
     
+    // water tank
     tft.fillRoundRect(WT_X+1, WT_Y+1, 20, 31, 6, water_colour);
 
-    // water
+    // water for shower head
     tft.drawLine(WT_X+31, WT_Y+8, WT_X+27, WT_Y+15, water_colour); // left
     tft.drawLine(WT_X+33, WT_Y+8, WT_X+30, WT_Y+15, water_colour); // left
 
