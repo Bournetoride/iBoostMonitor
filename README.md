@@ -4,11 +4,11 @@ Tasks:
 - Recieve/transmit packets and extract iBoost information - Done
 - Convert to freeRTOS - Done
 - Add WS2812B LED strip to have multiple LEDs to convey messages - Done
-- Investigate the use of an interrupt to indicate a valid packet has be received - TODO
 - Feed data to existing MQTT queue on the Raspberry Pi - Done
 - Raspberry Pi - Write information to website (and possible InfluxDb) - Website complete, InfluxDb TODO
 - Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but to small - Done
 - Purchased this [3.5 inch SPI serial LCD module](https://www.aliexpress.us/item/1005001999296476.html) to display iBoost information and solar information currently displayed by a Lillyo TTGO. Not due to arrive until 11th March - Done
+- Turn off/on power to the LCD backlight via a GPIO - TODO
 
 # iBoost Monitor
 
@@ -20,8 +20,10 @@ Hardware: ESP32 Wroom 32 (AliExpress) and a CC1101 Module (eBay).
 
 This project uses an ESP32 and a [CC1101 TI radio module](https://www.ti.com/lit/ds/symlink/cc1100.pdf).  It was written using 
 VSCode and the PlatformIO plug-in. Using the PubSubClient library for MQTT connectivity, TFT_eSPI for graphics and the same local radio library as 
-JMSwanson as it works. Also using ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling 
+JMSwanson as it works.  Also uses ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling 
 the WS2812B LED strip to give a visual indication of radio traffic and errors.
+
+The main part of the display is based on the home assistant power flow card. I did origionally have icons on the screen and moving arrows for the flows but feel that this visualisation is a lot easier on the eyes.  After 15 minutes of inactivity (no logging has occured) a screen saver is displayed to save burn out on the screen. The screen I am using doesn't come with a backlight pin to turn it off/on, it's powered by 3.3v. To get round this I would need an extra component I can control to turn the power on/off to the display - something to look at possibly in the furture. I read messages via MQTT which provide me with the solar PV currently being generated and how much solar has been generated that day which I display on the LCD. I also send the following information via MQTT to the Raspberry Pi for inclusion on our website; PV used to heat the water tank today, status of the water tank (off, heating by solar, or hot) and the state of the CT sender's battery (this is located in the electricity meter box).
 
 ## freeRTOS 
 TASKS:
@@ -41,6 +43,10 @@ RINGBUFFER:
 ## Wiring 
 
 ![Wiring](./images/iBoostMonitor.png)
+
+## Screenshot
+Not the best photo, not in it's case yet.
+![screenshot](./images/emon_display.jpg)
 
 ## Frequency tuning
 
