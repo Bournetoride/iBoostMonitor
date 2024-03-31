@@ -30,7 +30,6 @@ TaskHandle_t display_task_handle = NULL;
 
 QueueHandle_t inbuilt_led_queue;
 QueueHandle_t ws2812b_queue;
-QueueHandle_t transmit_queue;
 QueueHandle_t g_main_queue;
 
 int queue_size = 10;
@@ -176,17 +175,6 @@ void setup() {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
 
-        b_setup_successful = false;
-    }
-
-    transmit_queue = xQueueCreate(queue_size, sizeof(bool));
-    if (transmit_queue == NULL) {
-        ESP_LOGE(TAG, "Error creating transmit_queue");
-        strcpy(tx_item, "Error creating transmit_queue");
-        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
-        if (res != pdTRUE) {
-            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
-        }
         b_setup_successful = false;
     }
 

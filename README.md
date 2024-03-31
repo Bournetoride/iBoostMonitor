@@ -3,12 +3,12 @@ Currently in development.
 Tasks:
 - Recieve/transmit packets and extract iBoost information - Done
 - Convert to freeRTOS - Done
-- Add WS2812B LED strip to have multiple LEDs to convey messages - In progress
+- Add WS2812B LED strip to have multiple LEDs to convey messages - Done
 - Investigate the use of an interrupt to indicate a valid packet has be received - TODO
 - Feed data to existing MQTT queue on the Raspberry Pi - Done
 - Raspberry Pi - Write information to website (and possible InfluxDb) - Website complete, InfluxDb TODO
 - Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but to small - Done
-- Purchased this [3.5 inch SPI serial LCD module](https://www.aliexpress.us/item/1005001999296476.html) to display iBoost information and solar information currently displayed by a Lillyo TTGO. Not due to arrive until 11th March - TODO
+- Purchased this [3.5 inch SPI serial LCD module](https://www.aliexpress.us/item/1005001999296476.html) to display iBoost information and solar information currently displayed by a Lillyo TTGO. Not due to arrive until 11th March - Done
 
 # iBoost Monitor
 
@@ -19,12 +19,24 @@ This project is based on the original by [JMSwanson / ESP-Home-iBoost](https://g
 Hardware: ESP32 Wroom 32 (AliExpress) and a CC1101 Module (eBay).
 
 This project uses an ESP32 and a [CC1101 TI radio module](https://www.ti.com/lit/ds/symlink/cc1100.pdf).  It was written using 
-VSCode and the PlatformIO plug-in. Using the PubSubClient library for MQTT connectivity and the same local radio library as 
+VSCode and the PlatformIO plug-in. Using the PubSubClient library for MQTT connectivity, TFT_eSPI for graphics and the same local radio library as 
 JMSwanson as it works. Also using ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling 
-the WS2812B LED strip.
+the WS2812B LED strip to give a visual indication of radio traffic and errors.
 
-## Features
-- Thread-safe [MQTT client](https://github.com/cyijun/ESP32MQTTClient).
+## freeRTOS 
+TASKS:
+- Display task; this handles all visualisation from anination to the (matrix inspired) screen saver.
+- WS2812B task; flash an led when the CC1101 receives a packet, transmits a packet and when there is an error.
+- MQTT & WiFi task; periodically check that MQTT broker is running and we're connected to WiFi.
+- Receive task; handle all packets received by the CC1101 transceiver.
+- Transmit task; transmits a packet to the iBoost main unit (pretending to be the iBoost buddy) every 10 seconds requesting details stored in the iBoost unit.
+
+QUEUES:
+- WS2812B queue; passes what LED to flash to the WS2812B task.
+- Main queue; passes information to the display task for it to update the display.
+
+RINGBUFFER:
+- Using a ringbuffer to send messages to the logging (cLog) for displaying in the logging area of the display by the display task.
 
 ## Wiring 
 

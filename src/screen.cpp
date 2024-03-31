@@ -618,10 +618,10 @@ static void electricity_event_handler(void) {
                     grid_dot_sprite.drawLine(0, 5, 9, 5, TFT_ORANGE);
                     grid_dot_sprite.fillSmoothCircle(5, 5, 4, TFT_ORANGE);
 
-                    strcpy(tx_item, "Now exporting excess PV to the grid :-)");
-                    if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
-                        ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
-                    } 
+                    // strcpy(tx_item, "Now exporting excess PV to the grid :-)");
+                    // if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
+                    //     ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
+                    // } 
                 }
             break;
 
@@ -636,10 +636,10 @@ static void electricity_event_handler(void) {
                     grid_dot_sprite.drawLine(0, 5, 9, 5, TFT_ORANGE);
                     grid_dot_sprite.fillSmoothCircle(4, 4, 4, TFT_ORANGE);        
 
-                    strcpy(tx_item, "Now importing from the grid :-(");
-                    if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
-                        ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
-                    } 
+                    // strcpy(tx_item, "Now importing from the grid :-(");
+                    // if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
+                    //     ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
+                    // } 
                 }
             break;
 
