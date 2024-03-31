@@ -99,7 +99,3 @@ Screenshot of the current website view
 ## ESP32 Wroom 32 Pinout
 
 ![ESP32 Wroom 32](./images/ESP32-pinout-30pins.png)
-
-## Demo
-
-![Demo](./images/IMG_2298.mov)
