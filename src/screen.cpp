@@ -204,6 +204,7 @@ typedef struct {
 
     uint8_t lqi;                 // Radio LQI value
 } solar_t;
+//
 
 // Initialise struct, set all flags to false and default values
 solar_t volatile solar = {.b_solar_flag = false, .b_water_tank_flag = false, .b_import_flag = false, .b_export_flag = false,
@@ -228,7 +229,8 @@ static void touch(void);
 static void setup_screen_saver(void);
 static void reset_screen_saver_colour_map(void);
 static void electricity_event_handler(void);
-static void draw_battery(int x, int y, ib_info_t battery_status);
+static void draw_horizontal_battery(int x, int y, ib_info_t battery_status);
+static void draw_vertical_battery(int x, int y, ib_info_t battery_status);
 static void draw_lqi_signal_strength(int x, int y, uint8_t lqi);
 static void print_pv_today(void);
 static void print_pv_now(void);
@@ -252,16 +254,16 @@ static uint8_t screen_saver_colour_shift = SS_COLD;
  * 
  */
 void display_task(void *parameter) {
-    uint32_t check_animation = 0;  // time for next update
-    uint8_t update_animation = 50;        // update every 40ms
-    uint32_t check_matrix = 0;    // time for next update
-    uint16_t update_matrix = 500;         // update matrix screen saver every 'n' ms
-    uint32_t inactive = 1000 * 60 * 15;  // inactivity of 15 minutes then start screen saver
-    uint32_t check_one_second = 0;            // one second counter
+    uint32_t check_animation = 0;       // time for next update
+    uint8_t update_animation = 50;      // update every 40ms
+    uint32_t check_matrix = 0;          // time for next update
+    uint16_t update_matrix = 500;       // update matrix screen saver every 'n' ms
+    uint32_t inactive = 1000 * 60 * 15; // inactivity of 15 minutes then start screen saver
+    uint32_t check_one_second = 0;      // one second counter
 
     char *item = NULL;
     size_t item_size;
-    char tx_item[50];
+    char tx_item[50];                   // buffer used to send messages for logging
     UBaseType_t res = pdFALSE;
 
     bool b_show_date = true;            // Once we have the time, show the date, only needs to be run once
@@ -319,10 +321,6 @@ void display_task(void *parameter) {
     
     ESP_LOGI(TAGS, "Display Initialisation Complete");
 
-    // trying to draw wifi meter
-    // tft.drawArc(400, 200, 10, 9, 120, 240, TFT_WHITE, TFT_BACKGROUND);
-    // tft.drawArc(400, 205, 9, 8, 130, 250, TFT_WHITE, TFT_BACKGROUND);
-
     inactive_timer = millis();     // start inactivity timer for turning on the screen saver
 
     for ( ;; ) {
@@ -331,7 +329,7 @@ void display_task(void *parameter) {
                 check_matrix = millis();
                 matrix();
             }
-        } else {
+        } else { // check flags and update display as appropriate
             if (solar.b_update_pv_today) {
                 print_pv_today();
 
@@ -358,15 +356,15 @@ void display_task(void *parameter) {
 
             if (solar.b_update_wt_colour) {
                 switch (screen_saver_colour_shift) {
-                    case 4: // cold
+                    case SS_COLD: // cold
                         fill_water_tank(0);
                     break;
                     
-                    case 10: // warm
+                    case SS_WARM: // warm
                         fill_water_tank(1);
                     break;
 
-                    case 14: // hot
+                    case SS_HOT: // hot
                         fill_water_tank(2);
                     break;
                 }
@@ -417,7 +415,7 @@ void display_task(void *parameter) {
 
             if (solar.b_update_battery) {
                 solar.b_update_battery = false;
-                draw_battery(BATTERY_X, BATTERY_Y, solar.sender_battery_status);
+                draw_horizontal_battery(BATTERY_X, BATTERY_Y, solar.sender_battery_status);
             }
 
             if (millis() - check_animation >= update_animation) {  // time has elapsed, update display
@@ -460,13 +458,6 @@ void display_task(void *parameter) {
 
             //Return Item
             vRingbufferReturnItem(buf_handle, (void *)item);
-
-            // TODO - needs work on redrawing of screen
-            // if (b_screen_saver_is_active) {     // have a new message turn off the screen saver.
-            //     b_screen_saver_is_active = false;
-            //     inactive_timer = millis();     // reset inactivity timer to now
-            //     initialise_screen();
-            // }
         } 
 
         electricity_event_handler();
@@ -617,11 +608,6 @@ static void electricity_event_handler(void) {
                     grid_dot_sprite.fillSprite(TFT_BACKGROUND);
                     grid_dot_sprite.drawLine(0, 5, 9, 5, TFT_ORANGE);
                     grid_dot_sprite.fillSmoothCircle(5, 5, 4, TFT_ORANGE);
-
-                    // strcpy(tx_item, "Now exporting excess PV to the grid :-)");
-                    // if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
-                    //     ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
-                    // } 
                 }
             break;
 
@@ -635,11 +621,6 @@ static void electricity_event_handler(void) {
                     grid_dot_sprite.fillSprite(TFT_BACKGROUND);
                     grid_dot_sprite.drawLine(0, 5, 9, 5, TFT_ORANGE);
                     grid_dot_sprite.fillSmoothCircle(4, 4, 4, TFT_ORANGE);        
-
-                    // strcpy(tx_item, "Now importing from the grid :-(");
-                    // if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
-                    //     ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
-                    // } 
                 }
             break;
 
@@ -688,8 +669,8 @@ static void electricity_event_handler(void) {
                 solar.b_update_wt_today = true;
 
                 solar.b_update_wt_colour = true;
+                
                 // Set screen saver colour shift
-
                 if (solar.water_tank_status == IB_WT_HOT) {
                     screen_saver_colour_shift = SS_HOT;
                     reset_screen_saver_colour_map();
@@ -733,6 +714,7 @@ static void electricity_event_handler(void) {
                         case IB_WT_OFF:
                             solar.water_tank_status = electricity_event.info;
                             solar.b_update_wt_colour = true;
+                            solar.b_clear_wt_dot = true;
                             strcpy(tx_item, "Water tank heating is now off");
                             if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
                                 ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
@@ -768,7 +750,8 @@ static void electricity_event_handler(void) {
                         case IB_WT_HOT:
                             solar.water_tank_status = electricity_event.info;
                             solar.b_update_wt_colour = true;
-                            strcpy(tx_item, "Water Tank is HOT, shower time :-)");
+                            solar.b_clear_wt_dot = true;
+                            strcpy(tx_item, "Water Tank is HOT, shower time...");
                             if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
                                 ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
                             } 
@@ -793,7 +776,6 @@ static void electricity_event_handler(void) {
  * 
  */
 static void matrix(void) {
-
     for (int j = 0; j < MAX_COL; j++) {
         rnd_col_pos = random(1, MAX_COL);
 
@@ -802,11 +784,6 @@ static void matrix(void) {
         col_pos[rnd_col_pos - 1] = rnd_x; // save position
 
         for (int i = 0; i < MAX_CHR; i++) { 
-            // 4 = blue
-            // 5 = green
-            // 10 = green/orange
-            // 14 = red
-
             tft.setTextColor(color_map[rnd_col_pos][i] << screen_saver_colour_shift, TFT_BLACK); // Set the character colour/brightness
 
             if (color_map[rnd_col_pos][i] == 63) {
@@ -825,7 +802,6 @@ static void matrix(void) {
             yPos += LINE_HEIGHT;
 
             tft.drawChar(chr_map[rnd_col_pos][i], rnd_x, yPos, 1); // Draw the character
-
         }
 
         yPos = 0;
@@ -857,7 +833,7 @@ static void matrix(void) {
 /**
  * @brief Set up the screen. This will be called at program startup and when the screen
  * saver ends.  This will draw all static elements, i.e. house, sun, pylon, hot water
- * tank, menu buttons etc.
+ * tank, etc.
  */
 static void initialise_screen(void) {
     tft.fillScreen(TFT_BACKGROUND);
@@ -880,8 +856,9 @@ static void initialise_screen(void) {
     draw_pylon(415, 104);
     draw_water_tank(WT_X, WT_Y);
     draw_lqi_signal_strength(LQI_X, LQI_Y, solar.lqi);
-    draw_battery(BATTERY_X, BATTERY_Y, solar.sender_battery_status);
+    draw_horizontal_battery(BATTERY_X, BATTERY_Y, solar.sender_battery_status);
 
+    // lines connecting circles
     horizontal_line_sprite.drawLine(0, 0, 114, 0, TFT_GREEN_ENERGY);   // solar to house
     horizontal_line_sprite.pushSprite(sun_x, sun_y+10);
     horizontal_line_sprite.drawLine(0, 0, 114, 0, TFT_ORANGE);         // house to grid
@@ -905,7 +882,7 @@ static void initialise_screen(void) {
 }
 
 /**
- * @brief Start/setup the screen saver.  Will be started by the user touching the screen
+ * @brief Setup the screen saver.  Will be started by the user touching the screen
  * or after 'n' minutes of inactivity to save the screen from burn-in.
  */
 static void setup_screen_saver(void) {
@@ -938,7 +915,7 @@ static void reset_screen_saver_colour_map(void) {
 }
 
 /**
- * @brief Draw a house where xy is the bottom left of the house
+ * @brief Draw a house where xy is the roof apex of the house
  * 
  * @param x Roof apex x of house
  * @param y Roof apex y of house
@@ -956,18 +933,7 @@ static void draw_house(int x, int y) {
  * @param y Bottom left y
  * @param battery_status Is battery ok or low, only 2 options we have
  */
-static void draw_battery(int x, int y, ib_info_t battery_status) {
-    // vertical
-    // tft.drawSmoothRoundRect(x, y, 1, 1, 12, 18, TFT_WHITE, TFT_BACKGROUND);
-    // tft.drawRect(x+3, y-2, 6, 2, TFT_WHITE); // positive
-
-    // if (battery_status == IB_BATTERY_OK) {
-    //     tft.fillRect(x+1, y+4, 11, 14, TFT_WHITE); // 90%
-    // } else {
-    //     tft.fillRect(x+1, y+15, 11, 3, TFT_RED); // 20%
-    // }
-
-    // horizontal
+static void draw_horizontal_battery(int x, int y, ib_info_t battery_status) {
     tft.drawSmoothRoundRect(x, y, 1, 1, 18, 11, TFT_BLACK, TFT_SKYBLUE);
     tft.drawRect(x+19, y+3, 2, 6, TFT_BLACK); // positive
 
@@ -977,7 +943,24 @@ static void draw_battery(int x, int y, ib_info_t battery_status) {
     } else {
         tft.fillRect(x+1, y+1, 8, 10, TFT_RED); // LOW
     }
+}
 
+/**
+ * @brief Draw vertical battery
+ * 
+ * @param x Bottom left x
+ * @param y Bottom left y
+ * @param battery_status Is battery ok or low, only 2 options we have
+ */
+static void draw_vertical_battery(int x, int y, ib_info_t battery_status) {
+    tft.drawSmoothRoundRect(x, y, 1, 1, 12, 18, TFT_WHITE, TFT_BACKGROUND);
+    tft.drawRect(x+3, y-2, 6, 2, TFT_WHITE); // positive
+
+    if (battery_status == IB_BATTERY_OK) {
+        tft.fillRect(x+1, y+4, 11, 14, TFT_WHITE); // 90%
+    } else {
+        tft.fillRect(x+1, y+15, 11, 8, TFT_RED); // 20%
+    }
 }
 
 /**
@@ -1000,8 +983,8 @@ static void draw_lqi_signal_strength(int x, int y, uint8_t lqi) {
         tft.drawRect(x+9, y+10, 6, 11, TFT_BLACK);
         tft.drawRect(x+18, y+5, 6, 16, TFT_BLACK);
     }
-
 }
+
 /**
  * @brief Draw an electricity pylon
  * 
@@ -1095,16 +1078,6 @@ static void draw_water_tank(int x, int y) {
     tft.drawLine(x+30, y+6, x+40, y+6, TFT_FOREGROUND);
     tft.drawLine(x+31, y+7, x+39, y+7, TFT_FOREGROUND);
 
-    // tft.fillRoundRect(x+1, y+1, 20, 31, 6, TFT_WATERTANK_COLD);
-    // tft.drawLine(x+31, y+8, x+27, y+15, TFT_WATERTANK_COLD); // left
-    // tft.drawLine(x+33, y+8, x+30, y+15, TFT_WATERTANK_COLD); // left
-
-    // tft.drawLine(x+35, y+8, x+35, y+15, TFT_WATERTANK_COLD); // middle
-
-    // tft.drawLine(x+37, y+8, x+39, y+15, TFT_WATERTANK_COLD); // right
-    // tft.drawLine(x+39, y+8, x+42, y+15, TFT_WATERTANK_COLD); // right
-
-    // water - check logic if we're coming out of screen saver mode
     switch (screen_saver_colour_shift) {
         case SS_WARM: // warm
             fill_water_tank(1);
@@ -1207,7 +1180,7 @@ static void print_wt_today(void) {
 }
 
 /**
- * @brief 
+ * @brief Print water tank PV now value to screen
  * 
  */
 static void print_wt_now(void) {

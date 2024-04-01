@@ -38,7 +38,5 @@ typedef struct {
     float value;            // Value in watts/lqi
 } electricity_event_t;
 
-
-
 void display_task(void *parameter);
 void update_local_time(void);

@@ -116,7 +116,7 @@ String wifi_connection_status_message(wl_status_t wifi_status);
 static void mqtt_callback(char* topic, byte* message, unsigned int length);
 
 /**
- * @brief Set up everything. SPI, WiFi, MQTT, and CC1101
+ * @brief Set up everything. SPI, WiFi, MQTT, and CC1101 tasks, queues etc.
  * 
  */
 void setup() {
@@ -287,7 +287,7 @@ void setup() {
 }
 
 /**
- * @brief Main loop
+ * @brief Main loop, nothing happens here!
  * 
  */
 void loop(void) {
@@ -318,7 +318,7 @@ void blink_led_task(void *parameter) {
 
 
 /**
- * @brief Blink an LED on the LED strip dependiing on request.
+ * @brief Blink an LED on the WS2812B LED strip dependiing on request.
  * 
  * @param parameter Parameters passed to task on creation.
  */
@@ -527,12 +527,13 @@ void receive_packet_task(void *parameter) {
                     electricity_event.event = SL_EXPORT;
                     electricity_event.value = abs(p1/MAGIC_NUMBER);
                     electricity_event.info = IB_NONE;
-                } else { //if (p1/MAGIC_NUMBER > 0){            // importing
+                    xQueueSend(g_main_queue, &electricity_event, 0);
+                } else if (p1/MAGIC_NUMBER > 0){            // importing
                     electricity_event.event = SL_IMPORT;
                     electricity_event.value = p1/MAGIC_NUMBER;
                     electricity_event.info = IB_NONE;
+                    xQueueSend(g_main_queue, &electricity_event, 0);
                 }
-                xQueueSend(g_main_queue, &electricity_event, 0);
 
                 switch (packet[24]) {
                     case   SAVED_TODAY:
@@ -600,7 +601,6 @@ void receive_packet_task(void *parameter) {
                 }
                 xQueueSend(g_main_queue, &electricity_event, 0);
                 
-
                 // Status of the sender battery
                 if (b_is_battery_ok) {
                     iboost_information.b_sender_battery_ok = true;
@@ -635,13 +635,7 @@ void receive_packet_task(void *parameter) {
                     }
                 }
                 xSemaphoreGive(keep_alive_mqtt_semaphore);
-
-                //client.publish("iboost/savedYesterday", msg);
-                //client.publish("iboost/savedLast7", msg);
-                //client.publish("iboost/savedLast28", msg);
-                //client.publish("iboost/savedTotal", msg);
             }
-
 
             // Send message to LED task to blink the LED to show we've received a packet
             led = RECEIVE;
@@ -660,7 +654,8 @@ void receive_packet_task(void *parameter) {
 
 
 /**
- * @brief Transmit a packet to the iBoost main unit to request information
+ * @brief Transmit a packet to the iBoost main unit to request information, in effect a fake
+ * iBuddy message.
  * 
  */
 void transmit_packet_task(void *parameter) {
