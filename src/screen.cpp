@@ -668,6 +668,14 @@ static void electricity_event_handler(void) {
                     // TODO: set a flag clear any water tank writing for wt_now and the do
                 }
                 solar.b_update_wt_now = true;
+
+                // Some times the water tank can be the wrong colour :-(  Belts and
+                // braces check to correct that...
+                if (solar.wt_today > 2 && screen_saver_colour_shift == SS_COLD) {
+                    screen_saver_colour_shift = SS_WARM;
+                    solar.b_update_wt_colour = true;
+                    reset_screen_saver_colour_map();
+                }
             break;
             
             case SL_WT_TODAY:   // 5- Solar water tank PV today

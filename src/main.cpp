@@ -63,6 +63,7 @@ enum led_measage_t{
     ERROR,
     CLEAR,
     CLEAR_ERROR,
+    MQTT_ERROR,
     BLANK
 };
 
@@ -123,6 +124,8 @@ void setup() {
     BaseType_t x_returned;
     UBaseType_t res = pdFALSE;
     char tx_item[50];
+
+    memset(tx_item, '\0', sizeof(tx_item));
 
     // Initialise WS2812B strip object (REQUIRED)    
     ws2812b.begin();
@@ -344,6 +347,10 @@ void ws2812b_task(void *parameter) {
                 ws2812b.setPixelColor(3, pixel_colours.red);
                 ws2812b.show();
                 break;
+            case MQTT_ERROR:
+                ws2812b.setPixelColor(3, pixel_colours.violet);
+                ws2812b.show();
+                break;
             case CLEAR_ERROR:
                 ws2812b.setPixelColor(2, pixel_colours.clear);
                 ws2812b.setPixelColor(3, pixel_colours.clear);
@@ -435,6 +442,10 @@ void receive_packet_task(void *parameter) {
     led_measage_t led = RECEIVE;
     bool b_flag = true;
     electricity_event_t electricity_event;
+    char tx_item[50];
+    UBaseType_t res = pdFALSE;
+
+    memset(tx_item, '\0', sizeof(tx_item));
 
     for( ;; ) {
         xSemaphoreTake(radio_semaphore, portMAX_DELAY);
@@ -459,6 +470,11 @@ void receive_packet_task(void *parameter) {
 
                     ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboost_information.address[0], iboost_information.address[1]);
 
+                    strcpy(tx_item, "Updated iBoost address");
+                    res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+                    if (res != pdTRUE) {
+                        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+                    }
                 }
 
                 if (receive_lqi != iboost_information.lqi) {
@@ -511,7 +527,7 @@ void receive_packet_task(void *parameter) {
                     electricity_event.event = SL_EXPORT;
                     electricity_event.value = abs(p1/MAGIC_NUMBER);
                     electricity_event.info = IB_NONE;
-                } else if (p1/MAGIC_NUMBER > 0){            // importing
+                } else { //if (p1/MAGIC_NUMBER > 0){            // importing
                     electricity_event.event = SL_IMPORT;
                     electricity_event.value = p1/MAGIC_NUMBER;
                     electricity_event.info = IB_NONE;
@@ -607,7 +623,16 @@ void receive_packet_task(void *parameter) {
                     mqtt_client.publish("iboost/iboost", msg);
                     ESP_LOGI(TAG, "Published MQTT message: %s", msg);           
                 } else {
-                    ESP_LOGW(TAG, "Unable to publish message: %s to MQTT - not connected!", msg);    
+                    ESP_LOGW(TAG, "Unable to publish message: %s to MQTT - not connected!", msg); 
+
+                    led = MQTT_ERROR;
+                    xQueueSend(ws2812b_queue, &led, 0);
+
+                    strcpy(tx_item, "Unable to publish MQTT message - not connected");
+                    res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+                    if (res != pdTRUE) {
+                        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+                    }
                 }
                 xSemaphoreGive(keep_alive_mqtt_semaphore);
 
@@ -619,6 +644,7 @@ void receive_packet_task(void *parameter) {
 
 
             // Send message to LED task to blink the LED to show we've received a packet
+            led = RECEIVE;
             xQueueSend(inbuilt_led_queue, &b_flag, 0); // internal led
             xQueueSend(ws2812b_queue, &led, 0); // led strip
 
