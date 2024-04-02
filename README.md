@@ -1,15 +1,5 @@
 Currently in development. 
 
-Tasks:
-- Recieve/transmit packets and extract iBoost information - Done
-- Convert to freeRTOS - Done
-- Add WS2812B LED strip to have multiple LEDs to convey messages - Done
-- Feed data to existing MQTT queue on the Raspberry Pi - Done
-- Raspberry Pi - Write information to website (and possible InfluxDb) - Website complete, InfluxDb TODO
-- Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but to small - Done
-- Purchased this [3.5 inch SPI serial LCD module]() to display iBoost information and solar information currently displayed by a Lillyo TTGO. Not due to arrive until 11th March - Done
-- Turn off/on power to the LCD backlight via a GPIO - TODO
-
 # iBoost Monitor
 
 This project is only possible because of the work done by the following:
@@ -45,6 +35,7 @@ RINGBUFFER:
 - Using a ringbuffer to send messages to the logging (cLog) for displaying in the logging area of the display by the display task.
 
 ## Wiring 
+Wiring diagram provided by my wife.
 
 ![Wiring](./images/iBoostMonitor.png)
 
@@ -99,3 +90,14 @@ Screenshot of the current website view .  Only needs to be a simple display, it'
 ## ESP32 Wroom 32 Pinout
 
 ![ESP32 Wroom 32](./images/ESP32-pinout-30pins.png)
+
+## Tasks
+
+- Recieve/transmit packets and extract iBoost information - Done
+- Convert to freeRTOS - Done
+- Add WS2812B LEDs to have multiple LEDs to convey messages - Done
+- Feed data to existing MQTT queue on the Raspberry Pi - Done
+- Raspberry Pi - Write information to website (and possible InfluxDb) - Website complete, InfluxDb not bothering with.
+- Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but to small - Done
+- Purchased this [3.5 inch SPI serial LCD module]() to display iBoost information and solar information currently displayed by a Lillyo TTGO. 
+- Turn off/on power to the LCD backlight via a GPIO - TODO (possibly)
