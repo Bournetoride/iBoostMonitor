@@ -91,7 +91,7 @@ Screenshot of the current website view .  Only needs to be a simple display, it'
 
 ![ESP32 Wroom 32](./images/ESP32-pinout-30pins.png)
 
-## Tasks
+## Development Tasks
 
 - Recieve/transmit packets and extract iBoost information - Done
 - Convert to freeRTOS - Done
