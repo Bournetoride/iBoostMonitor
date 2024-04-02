@@ -7,7 +7,7 @@ Tasks:
 - Feed data to existing MQTT queue on the Raspberry Pi - Done
 - Raspberry Pi - Write information to website (and possible InfluxDb) - Website complete, InfluxDb TODO
 - Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but to small - Done
-- Purchased this [3.5 inch SPI serial LCD module](https://www.aliexpress.us/item/1005001999296476.html) to display iBoost information and solar information currently displayed by a Lillyo TTGO. Not due to arrive until 11th March - Done
+- Purchased this [3.5 inch SPI serial LCD module]() to display iBoost information and solar information currently displayed by a Lillyo TTGO. Not due to arrive until 11th March - Done
 - Turn off/on power to the LCD backlight via a GPIO - TODO
 
 # iBoost Monitor
@@ -19,9 +19,11 @@ This project is only possible because of the work done by the following:
 
 [Marlec iBoost](https://www.marlec.co.uk/product/solar-iboost/) Monitor 
 
-This project uses an ESP32 Wroom 32 (AliExpress) and a [CC1101 TI radio module](https://www.ti.com/lit/ds/symlink/cc1100.pdf) from eBay and a 3.5" SPI serial LCD module also from AliExpress.  The [3D printed case](https://www.thingiverse.com/thing:4947913) was printed by my son-in-law.  It was written using VSCode and the PlatformIO plug-in.  Using the PubSubClient library for MQTT connectivity, TFT_eSPI for graphics and the same local radio library as JMSwanson as it works.  Also uses ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling the WS2812B LED strip to give a visual indication of radio traffic and errors.
+This project uses an ESP32 Wroom 32 (AliExpress) and a [CC1101 TI radio module](https://www.ti.com/lit/ds/symlink/cc1100.pdf) from eBay and a [3.5" SPI serial LCD module](https://www.aliexpress.us/item/1005001999296476.html) also from AliExpress.  The [3D case](https://www.thingiverse.com/thing:4947913) for this project was printed by my son-in-law.  The code was written in VSCode and the PlatformIO plug-in, using the PubSubClient library for MQTT connectivity, TFT_eSPI for graphics, and the same local radio library as JMSwanson as it works.  Also uses ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling the WS2812B LEDs to give a visual indication of radio traffic and any errors.
 
-The main part of the display is based on the home assistant power flow card.  I did origionally have icons on the screen and moving arrows for the flows but feel that this visualisation is a lot easier on the eyes.  After 15 minutes of inactivity (no logging has occured) a screen saver is displayed to save burn out on the screen. The screen I am using doesn't come with a backlight pin to turn it off/on, it's powered by 3.3v.  To get round this I would need an extra component I can control to turn the power on/off to the backlight - something to look at possibly in the furture.  I read messages via MQTT (Raspberry Pi 4) which provide me with the solar PV currently being generated and how much solar has been generated that day (via RS485 from the inverter to the Pi) which I also display on the LCD.  Additionally, I send the following information via MQTT to the Raspberry Pi for inclusion on our website; PV used to heat the water tank today, status of the water tank (off, heating by solar, or hot) and the state of the CT sender's battery (this is located in the electricity meter box).
+The main part of the display is based on the home assistant power flow card.  I did origionally have icons on the screen and moving arrows for the flows but feel that this visualisation is a lot easier on the eyes.  After 15 minutes of inactivity (no logging has occured) a Matrix inspired screen saver is displayed to save burn out on the screen.  As the water heats up the colour of the screen saver text changes to give a visual indication to us of when the water is hot.  
+
+The screen I am using doesn't come with a backlight pin to turn it off/on, it's powered by 3.3v.  To get round this I would need an extra component I can control to turn the power on/off to the backlight - something to look at possibly in the furture.  I read messages via MQTT (Raspberry Pi 4) which provide me with the solar PV currently being generated and how much solar has been generated that day (via RS485 from the inverter to the Pi) which I also display on the LCD.  Additionally, I send the following information via MQTT to the Pi for inclusion on our website via crontab every 15 minutes through a Python script; PV used to heat the water tank today, status of the water tank (off, heating by solar, or hot) and the state of the CT sender's battery (this is located in the electricity meter box).
 
 ## Screenshot
 Not in it's case yet.
@@ -90,7 +92,7 @@ You should optimize receive quality for the iBoost main unit (0x22). I don't hav
 
 ## Website
 
-Screenshot of the current website view
+Screenshot of the current website view .  Only needs to be a simple display, it's just for us to view if we're out and want to know if we need to heat the hot water (via HIVE) for showers etc.
 
 ![Screenshot](./images/website.png)
 
