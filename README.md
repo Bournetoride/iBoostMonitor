@@ -12,18 +12,16 @@ Tasks:
 
 # iBoost Monitor
 
+This project is only possible because of the work done by the following:
+- Original [RTL_433 issue](https://github.com/merbanan/rtl_433/issues/1739) to decode Marlec Solar iBoost.
+- Protocol analysis by [David Crocker](https://miscsolutions.wordpress.com/2022/10/02/home-energy-management-system-part-2-hacking-the-iboost-protocol/).
+- ESPHome solution of the above by [JMSwanson / ESP-Home-iBoost](https://github.com/JNSwanson/ESP-Home-iBoost). 
+
 [Marlec iBoost](https://www.marlec.co.uk/product/solar-iboost/) Monitor 
 
-This project is based on the original by [JMSwanson / ESP-Home-iBoost](https://github.com/JNSwanson/ESP-Home-iBoost) which integrates with ESPHome which I (currently) do not use.
+This project uses an ESP32 Wroom 32 (AliExpress) and a [CC1101 TI radio module](https://www.ti.com/lit/ds/symlink/cc1100.pdf) from eBay and a 3.5" SPI serial LCD module also from AliExpress.  The [3D printed case](https://www.thingiverse.com/thing:4947913) was printed by my son-in-law.  It was written using VSCode and the PlatformIO plug-in.  Using the PubSubClient library for MQTT connectivity, TFT_eSPI for graphics and the same local radio library as JMSwanson as it works.  Also uses ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling the WS2812B LED strip to give a visual indication of radio traffic and errors.
 
-Hardware: ESP32 Wroom 32 (AliExpress) and a CC1101 Module (eBay).
-
-This project uses an ESP32 and a [CC1101 TI radio module](https://www.ti.com/lit/ds/symlink/cc1100.pdf).  It was written using 
-VSCode and the PlatformIO plug-in. Using the PubSubClient library for MQTT connectivity, TFT_eSPI for graphics and the same local radio library as 
-JMSwanson as it works.  Also uses ArduinoJson for formatting MQTT messages and the Adafruit NeoPixel library for controlling 
-the WS2812B LED strip to give a visual indication of radio traffic and errors.
-
-The main part of the display is based on the home assistant power flow card. I did origionally have icons on the screen and moving arrows for the flows but feel that this visualisation is a lot easier on the eyes.  After 15 minutes of inactivity (no logging has occured) a screen saver is displayed to save burn out on the screen. The screen I am using doesn't come with a backlight pin to turn it off/on, it's powered by 3.3v. To get round this I would need an extra component I can control to turn the power on/off to the display - something to look at possibly in the furture. I read messages via MQTT which provide me with the solar PV currently being generated and how much solar has been generated that day which I display on the LCD. I also send the following information via MQTT to the Raspberry Pi for inclusion on our website; PV used to heat the water tank today, status of the water tank (off, heating by solar, or hot) and the state of the CT sender's battery (this is located in the electricity meter box).
+The main part of the display is based on the home assistant power flow card.  I did origionally have icons on the screen and moving arrows for the flows but feel that this visualisation is a lot easier on the eyes.  After 15 minutes of inactivity (no logging has occured) a screen saver is displayed to save burn out on the screen. The screen I am using doesn't come with a backlight pin to turn it off/on, it's powered by 3.3v.  To get round this I would need an extra component I can control to turn the power on/off to the backlight - something to look at possibly in the furture.  I read messages via MQTT (Raspberry Pi 4) which provide me with the solar PV currently being generated and how much solar has been generated that day (via RS485 from the inverter to the Pi) which I also display on the LCD.  Additionally, I send the following information via MQTT to the Raspberry Pi for inclusion on our website; PV used to heat the water tank today, status of the water tank (off, heating by solar, or hot) and the state of the CT sender's battery (this is located in the electricity meter box).
 
 ## Screenshot
 Not in it's case yet.
