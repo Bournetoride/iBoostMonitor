@@ -35,7 +35,7 @@ RINGBUFFER:
 - Using a ringbuffer to send messages to the logging (cLog) for displaying in the logging area of the display by the display task.
 
 ## Wiring 
-Wiring diagram provided by my wife.
+Wiring diagram provided by my [wife](https://www.redbubble.com/people/quirkytales/shop?artistUserName=quirkytales&collections=1925754&iaCode=all-departments&sortOrder=relevant).
 
 ![Wiring](./images/iBoostMonitor.png)
 
@@ -101,3 +101,4 @@ Screenshot of the current website view .  Only needs to be a simple display, it'
 - Use Lilygo TTGO (ESP32-S3 with a display)/add a display - TTGO works but to small - Done
 - Purchased this [3.5 inch SPI serial LCD module]() to display iBoost information and solar information currently displayed by a Lillyo TTGO. 
 - Turn off/on power to the LCD backlight via a GPIO - TODO (possibly)
+- Use Barr Group [C coding standards](https://barrgroup.com/sites/default/files/barr_c_coding_standard_2018.pdf)
