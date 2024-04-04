@@ -905,8 +905,8 @@ void connect_to_wifi(void) {
         ESP_LOGI(TAG, "   waiting for WiFi connection");
         //updateLog("Waiting for WiFi connection");
         strcpy(tx_item, "Waiting for WiFi connection");
-        memset(tx_item, '\0', sizeof(tx_item));
         res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+        memset(tx_item, '\0', sizeof(tx_item));
         if (res != pdTRUE) {
             ESP_LOGE(TAG, "Failed to send Ringbuffer item");
         }
