@@ -271,6 +271,8 @@ void display_task(void *parameter) {
 
     memset(tx_item, '\0', sizeof(tx_item));
 
+    //ESP_LOGI(TAGS, "Executing on core: %d", xPortGetCoreID());
+
     // Set all chip selects high to astatic void bus contention during initialisation of each peripheral
     digitalWrite(TOUCH_CS, HIGH);   // ********** TFT_eSPI touch **********
     digitalWrite(TFT_CS, HIGH);     // ********** TFT_eSPI screen library **********
@@ -647,6 +649,7 @@ static void electricity_event_handler(void) {
                 } else {
                     solar.b_water_tank_flag = false;
                     // TODO: set a flag clear any water tank writing for wt_now and the do
+                    solar.b_clear_wt_dot = true;
                 }
                 solar.b_update_wt_now = true;
 
@@ -751,7 +754,7 @@ static void electricity_event_handler(void) {
                             solar.water_tank_status = electricity_event.info;
                             solar.b_update_wt_colour = true;
                             solar.b_clear_wt_dot = true;
-                            strcpy(tx_item, "Water Tank is HOT, shower time...");
+                            strcpy(tx_item, "Water Tank is HOT");
                             if (xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0)) != pdTRUE) {
                                 ESP_LOGE(TAGS, "Failed to send Ringbuffer item");
                             } 
@@ -1193,7 +1196,7 @@ static void print_wt_now(void) {
         tft.print(solar.wt_now);
         tft.print(" W   ");
     } else {
-    tft.print("         ");
+        tft.print("         ");
 
     }
 }
