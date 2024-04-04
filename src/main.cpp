@@ -466,206 +466,226 @@ void receive_packet_task(void *parameter) {
     //ESP_LOGI(TAG, "Executing on core: %d", xPortGetCoreID());
 
     for( ;; ) {
-        xSemaphoreTake(radio_semaphore, portMAX_DELAY);
-        byte pkt_size = radio.getPacket(packet);
-        if (pkt_size > 0 && radio.crcok()) {        // We have a valid packet with some data
-            short heating;
-            long p1, p2;
-            byte boostTime;
-            bool b_is_water_heating_by_solar, b_is_cylinder_hot, b_is_battery_ok;
-            int16_t rssi = radio.getRSSIdbm();
+        if (xSemaphoreTake(radio_semaphore, 250 / portTICK_PERIOD_MS) == pdTRUE) {
+            byte pkt_size = radio.getPacket(packet);
+            if (pkt_size > 0 && radio.crcok()) {        // We have a valid packet with some data
+                short heating;
+                long p1, p2;
+                byte boostTime;
+                bool b_is_water_heating_by_solar, b_is_cylinder_hot, b_is_battery_ok;
+                int16_t rssi = radio.getRSSIdbm();
 
-            //   buddy request                            sender packet
-            if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
-                receive_lqi = radio.getLQI();
-                ESP_LOGI(TAG, "Buddy/Sender frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, receive_lqi);
+                //   buddy request                            sender packet
+                if ((packet[2] == 0x21 && pkt_size == 29) || (packet[2] == 0x01 && pkt_size == 44)) {
+                    receive_lqi = radio.getLQI();
+                    ESP_LOGI(TAG, "Buddy/Sender frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, receive_lqi);
 
-                if(receive_lqi < address_lqi) { // is the signal stronger than the previous/none
-                    address_lqi = receive_lqi;
-                    iboost_information.address[0] = packet[0]; // save the address of the packet	0x1c7b; //
-                    iboost_information.address[1] = packet[1];
-                    iboost_information.b_is_address_valid = true;
+                    if(receive_lqi < address_lqi) { // is the signal stronger than the previous/none
+                        address_lqi = receive_lqi;
+                        iboost_information.address[0] = packet[0]; // save the address of the packet	0x1c7b; //
+                        iboost_information.address[1] = packet[1];
+                        iboost_information.b_is_address_valid = true;
 
-                    ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboost_information.address[0], iboost_information.address[1]);
+                        ESP_LOGI(TAG, "Updated iBoost address to: %02x,%02x", iboost_information.address[0], iboost_information.address[1]);
 
-                    strcpy(tx_item, "Updated iBoost address");
-                    res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
-                    memset(tx_item, '\0', sizeof(tx_item));
-                    if (res != pdTRUE) {
-                        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+                        strcpy(tx_item, "Updated iBoost address");
+                        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+                        memset(tx_item, '\0', sizeof(tx_item));
+                        if (res != pdTRUE) {
+                            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+                        }
+                    }
+
+                    if (receive_lqi != iboost_information.lqi) {
+                        iboost_information.lqi = receive_lqi;
+                        electricity_event.event = SL_LQI;
+                        electricity_event.value = receive_lqi;
+                        electricity_event.info = IB_NONE;
+                        xQueueSend(g_main_queue, &electricity_event, 0);
                     }
                 }
 
-                if (receive_lqi != iboost_information.lqi) {
-                    iboost_information.lqi = receive_lqi;
-                    electricity_event.event = SL_LQI;
-                    electricity_event.value = receive_lqi;
-                    electricity_event.info = IB_NONE;
+                // main unit (sending info to iBoost Buddy)
+                if (packet[2] == 0x22) {    
+                    #ifdef HEXDUMP  // declared in platformio.ini
+                        // log level needs to be ESP_LOG_ERROR to get something to print!!
+                        ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
+                    #endif
+                    ESP_LOGI(TAG, "iBoost frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, receive_lqi);
+                    heating = (* ( short *) &packet[16]);
+                    p1 = (* ( long*) &packet[18]);
+                    p2 = (* ( long*) &packet[25]); // this depends on the request
+
+                    ESP_LOGI(TAG, "packet[6]: %d, packet[7]: %d", packet[6], packet[7]);
+                    if (packet[6]) {
+                        b_is_water_heating_by_solar = false;
+                    } else {
+                        b_is_water_heating_by_solar = true;
+                    }
+
+                    if (packet[7] == 1) {
+                        b_is_cylinder_hot = true;
+                    } else {
+                        b_is_cylinder_hot = false;
+                    }
+
+                    if (packet[12]) {
+                        b_is_battery_ok = false;
+                    } else {
+                        b_is_battery_ok = true;
+                    }
+
+                    boostTime=packet[5]; // boost time remaining (minutes)
+
+                    ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  %s: %ld Watts  P2: %ld", 
+                        heating, p1, (p1/MAGIC_NUMBER < 0 ? "Exporting": "Importing"), 
+                        (p1/MAGIC_NUMBER < 0 ? abs(p1/MAGIC_NUMBER): p1/MAGIC_NUMBER), p2); 
+
+                    // Importing or exporting electricity
+                    if (p1/MAGIC_NUMBER < 0) {   // exporting
+                        electricity_event.event = SL_EXPORT;
+                        electricity_event.value = abs(p1/MAGIC_NUMBER);
+                        electricity_event.info = IB_NONE;
+                        xQueueSend(g_main_queue, &electricity_event, 0);
+                    } else if (p1/MAGIC_NUMBER > 0){            // importing
+                        electricity_event.event = SL_IMPORT;
+                        electricity_event.value = p1/MAGIC_NUMBER;
+                        electricity_event.info = IB_NONE;
+                        xQueueSend(g_main_queue, &electricity_event, 0);
+                    }
+
+                    switch (packet[24]) {
+                        case   SAVED_TODAY:
+                            if (iboost_information.today != p2) {   // only update if value changed
+                                iboost_information.today = p2;
+                                electricity_event.event = SL_WT_TODAY;
+                                electricity_event.value = p2;
+                                electricity_event.info = IB_NONE;
+                                xQueueSend(g_main_queue, &electricity_event, 0);
+                            } 
+                        break;
+
+                        case   SAVED_YESTERDAY:
+                            iboost_information.yesterday = p2;
+                        break;
+
+                        case   SAVED_LAST_7:
+                            iboost_information.last7 = p2;
+                        break;
+
+                        case   SAVED_LAST_28:
+                            iboost_information.last28 = p2;
+                        break;
+
+                        case   SAVED_TOTAL:
+                            iboost_information.total = p2;
+                        break;
+                    }
+
+                    if (b_is_cylinder_hot)
+                        ESP_LOGI(TAG, "Water Tank HOT");
+                    else if (boostTime > 0)
+                        ESP_LOGI(TAG, "Manual Boost ON"); 
+                    else if (b_is_water_heating_by_solar) {
+                        ESP_LOGI(TAG, "Heating by Solar = %d Watts", heating);
+                    }
+                    else {
+                        ESP_LOGI(TAG, "Water Heating OFF");
+                    }
+
+                    ESP_LOGI(TAG, "Today: %ld Wh   Yesterday: %ld Wh   Last 7 Days: %ld Wh   Last 28 Days: %ld Wh   Total: %ld Wh   Boost Time: %d", 
+                        iboost_information.today, iboost_information.yesterday, iboost_information.last7, iboost_information.last28, iboost_information.total, boostTime);
+
+                    // Create JSON for sending via MQTT to MQTT server
+                    // How much solar we have used today to heat the hot water
+                    doc["savedToday"] = iboost_information.today;
+                    
+                    // Water tank status
+                    if (b_is_cylinder_hot) {
+                        doc["hotWater"] =  "HOT";                        
+                        electricity_event.event = SL_WT_STATUS;
+                        electricity_event.value = 0;
+                        electricity_event.info = IB_WT_HOT;
+                    } else if (b_is_water_heating_by_solar) {
+                        ESP_LOGI(TAG, "Heating by solar detected");
+                        doc["hotWater"] =  "Heating by Solar";                        
+                        electricity_event.event = SL_WT_NOW;
+                        electricity_event.value = heating;          // equates to PV being used now
+                        electricity_event.info = IB_WT_HEATING;
+                    } else {
+                        doc["hotWater"] =  "Off";                        
+                        electricity_event.event = SL_WT_STATUS;
+                        electricity_event.value = 0;
+                        electricity_event.info = IB_WT_OFF;
+                    }
                     xQueueSend(g_main_queue, &electricity_event, 0);
-                }
-            }
-
-            // main unit (sending info to iBoost Buddy)
-            if (packet[2] == 0x22) {    
-                #ifdef HEXDUMP  // declared in platformio.ini
-                    // log level needs to be ESP_LOG_ERROR to get something to print!!
-                    ESP_LOG_BUFFER_HEXDUMP(TAG, packet, pkt_size, ESP_LOG_ERROR);
-                #endif
-                ESP_LOGI(TAG, "iBoost frame received: length=%d, RSSI=%d, LQI=%d", pkt_size, rssi, receive_lqi);
-                heating = (* ( short *) &packet[16]);
-                p1 = (* ( long*) &packet[18]);
-                p2 = (* ( long*) &packet[25]); // this depends on the request
-
-                ESP_LOGI(TAG, "packet[6]: %d, packet[7]: %d", packet[6], packet[7]);
-                if (packet[6]) {
-                    b_is_water_heating_by_solar = false;
-                } else {
-                    b_is_water_heating_by_solar = true;
-                }
-
-                if (packet[7] == 1) {
-                    b_is_cylinder_hot = true;
-                } else {
-                    b_is_cylinder_hot = false;
-                }
-
-                if (packet[12]) {
-                    b_is_battery_ok = false;
-                } else {
-                    b_is_battery_ok = true;
-                }
-
-                boostTime=packet[5]; // boost time remaining (minutes)
-
-                ESP_LOGI(TAG, "Heating: %d Watts  P1: %ld  %s: %ld Watts  P2: %ld", 
-                    heating, p1, (p1/MAGIC_NUMBER < 0 ? "Exporting": "Importing"), 
-                    (p1/MAGIC_NUMBER < 0 ? abs(p1/MAGIC_NUMBER): p1/MAGIC_NUMBER), p2); 
-
-                // Importing or exporting electricity
-                if (p1/MAGIC_NUMBER < 0) {   // exporting
-                    electricity_event.event = SL_EXPORT;
-                    electricity_event.value = abs(p1/MAGIC_NUMBER);
-                    electricity_event.info = IB_NONE;
-                    xQueueSend(g_main_queue, &electricity_event, 0);
-                } else if (p1/MAGIC_NUMBER > 0){            // importing
-                    electricity_event.event = SL_IMPORT;
-                    electricity_event.value = p1/MAGIC_NUMBER;
-                    electricity_event.info = IB_NONE;
-                    xQueueSend(g_main_queue, &electricity_event, 0);
-                }
-
-                switch (packet[24]) {
-                    case   SAVED_TODAY:
-                        if (iboost_information.today != p2) {   // only update if value changed
-                            iboost_information.today = p2;
-                            electricity_event.event = SL_WT_TODAY;
-                            electricity_event.value = p2;
-                            electricity_event.info = IB_NONE;
-                            xQueueSend(g_main_queue, &electricity_event, 0);
-                        } 
-                    break;
-
-                    case   SAVED_YESTERDAY:
-                        iboost_information.yesterday = p2;
-                    break;
-
-                    case   SAVED_LAST_7:
-                        iboost_information.last7 = p2;
-                    break;
-
-                    case   SAVED_LAST_28:
-                        iboost_information.last28 = p2;
-                    break;
-
-                    case   SAVED_TOTAL:
-                        iboost_information.total = p2;
-                    break;
-                }
-
-                if (b_is_cylinder_hot)
-                    ESP_LOGI(TAG, "Water Tank HOT");
-                else if (boostTime > 0)
-                    ESP_LOGI(TAG, "Manual Boost ON"); 
-                else if (b_is_water_heating_by_solar) {
-                    ESP_LOGI(TAG, "Heating by Solar = %d Watts", heating);
-                }
-                else {
-                    ESP_LOGI(TAG, "Water Heating OFF");
-                }
-
-                ESP_LOGI(TAG, "Today: %ld Wh   Yesterday: %ld Wh   Last 7 Days: %ld Wh   Last 28 Days: %ld Wh   Total: %ld Wh   Boost Time: %d", 
-                    iboost_information.today, iboost_information.yesterday, iboost_information.last7, iboost_information.last28, iboost_information.total, boostTime);
-
-                // Create JSON for sending via MQTT to MQTT server
-                // How much solar we have used today to heat the hot water
-                doc["savedToday"] = iboost_information.today;
-                
-                // Water tank status
-                if (b_is_cylinder_hot) {
-                    doc["hotWater"] =  "HOT";                        
-                    electricity_event.event = SL_WT_STATUS;
+                    
+                    // Status of the sender battery
+                    if (b_is_battery_ok) {
+                        iboost_information.b_sender_battery_ok = true;
+                        ESP_LOGI(TAG, "Sender Battery OK");
+                        doc["battery"] =  "OK"; 
+                        electricity_event.info = IB_BATTERY_OK;
+                    } else {
+                        iboost_information.b_sender_battery_ok = false;
+                        ESP_LOGI(TAG, "Warning - Sender Battery LOW");
+                        doc["battery"] = "LOW"; 
+                        electricity_event.info = IB_BATTERY_LOW;
+                    }
+                    electricity_event.event = SL_BATTERY;
                     electricity_event.value = 0;
-                    electricity_event.info = IB_WT_HOT;
-                } else if (b_is_water_heating_by_solar) {
-                    ESP_LOGI(TAG, "Heating by solar detected");
-                    doc["hotWater"] =  "Heating by Solar";                        
-                    electricity_event.event = SL_WT_NOW;
-                    electricity_event.value = heating;          // equates to PV being used now
-                    electricity_event.info = IB_WT_HEATING;
-                } else {
-                    doc["hotWater"] =  "Off";                        
-                    electricity_event.event = SL_WT_STATUS;
-                    electricity_event.value = 0;
-                    electricity_event.info = IB_WT_OFF;
-                }
-                xQueueSend(g_main_queue, &electricity_event, 0);
-                
-                // Status of the sender battery
-                if (b_is_battery_ok) {
-                    iboost_information.b_sender_battery_ok = true;
-                    ESP_LOGI(TAG, "Sender Battery OK");
-                    doc["battery"] =  "OK"; 
-                    electricity_event.info = IB_BATTERY_OK;
-                } else {
-                    iboost_information.b_sender_battery_ok = false;
-                    ESP_LOGI(TAG, "Warning - Sender Battery LOW");
-                    doc["battery"] = "LOW"; 
-                    electricity_event.info = IB_BATTERY_LOW;
-                }
-                electricity_event.event = SL_BATTERY;
-                electricity_event.value = 0;
-                xQueueSend(g_main_queue, &electricity_event, 0);
+                    xQueueSend(g_main_queue, &electricity_event, 0);
 
-                xSemaphoreTake(keep_alive_mqtt_semaphore, portMAX_DELAY);
-                if (mqtt_client.connected()) {
-                    serializeJson(doc, msg);
-                    mqtt_client.publish("iboost/iboost", msg);
-                    ESP_LOGI(TAG, "Published MQTT message: %s", msg);           
-                } else {
-                    ESP_LOGW(TAG, "Unable to publish message: %s to MQTT - not connected!", msg); 
+                    if (xSemaphoreTake(keep_alive_mqtt_semaphore, 250 / portTICK_PERIOD_MS) == pdTRUE) {
+                        if (mqtt_client.connected()) {
+                            serializeJson(doc, msg);
+                            mqtt_client.publish("iboost/iboost", msg);
+                            ESP_LOGI(TAG, "Published MQTT message: %s", msg);           
+                        } else {
+                            ESP_LOGW(TAG, "Unable to publish message: %s to MQTT - not connected!", msg); 
 
-                    led = MQTT_ERROR;
-                    xQueueSend(ws2812b_queue, &led, 0);
+                            led = MQTT_ERROR;
+                            xQueueSend(ws2812b_queue, &led, 0);
 
-                    strcpy(tx_item, "Unable to publish MQTT message - not connected");
-                    res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
-                    memset(tx_item, '\0', sizeof(tx_item));
-                    if (res != pdTRUE) {
-                        ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+                            strcpy(tx_item, "Unable to publish MQTT message - not connected");
+                            res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+                            memset(tx_item, '\0', sizeof(tx_item));
+                            if (res != pdTRUE) {
+                                ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+                            }
+                        }
+                        xSemaphoreGive(keep_alive_mqtt_semaphore);
+                    } else {
+                        ESP_LOGE(TAG, "Unable to take keep_alive_mqtt_semaphore");
+                        strcpy(tx_item, "Unable to take keep_alive_mqtt_semaphore");
+                        res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+                        memset(tx_item, '\0', sizeof(tx_item));
+                        if (res != pdTRUE) {
+                            ESP_LOGE(TAG, "Failed to send Ringbuffer item");
+                        }
                     }
                 }
-                xSemaphoreGive(keep_alive_mqtt_semaphore);
+
+                // Send message to LED task to blink the LED to show we've received a packet
+                led = RECEIVE;
+                // xQueueSend(inbuilt_led_queue, &b_flag, 0); // internal led
+                xQueueSend(ws2812b_queue, &led, 0); // led strip
+
+                // ESP_LOGI(TAG, "## Receive Task Stack Left: %d", uxTaskGetStackHighWaterMark(NULL));
+            }   
+
+            xSemaphoreGive(radio_semaphore);
+
+        } else {
+            ESP_LOGE(TAG, "Unable to take radio_semaphore");
+            strcpy(tx_item, "Unable to take radio_semaphore");
+            res =  xRingbufferSend(buf_handle, tx_item, sizeof(tx_item), pdMS_TO_TICKS(0));
+            memset(tx_item, '\0', sizeof(tx_item));
+            if (res != pdTRUE) {
+                ESP_LOGE(TAG, "Failed to send Ringbuffer item");
             }
-
-            // Send message to LED task to blink the LED to show we've received a packet
-            led = RECEIVE;
-            // xQueueSend(inbuilt_led_queue, &b_flag, 0); // internal led
-            xQueueSend(ws2812b_queue, &led, 0); // led strip
-
-            // ESP_LOGI(TAG, "## Receive Task Stack Left: %d", uxTaskGetStackHighWaterMark(NULL));
-        }   
-
-        xSemaphoreGive(radio_semaphore);
+        }
+        
         vTaskDelay(250 / portTICK_PERIOD_MS);       // Give some time so other tasks can run/complete
         // TODO - can we increase this delay or just use one task for tx and rx - no reason why not
     }
@@ -683,7 +703,7 @@ void transmit_packet_task(void *parameter) {
     uint8_t request = 0xca;
     led_measage_t led = TX_FAKE_BUDDY_REQUEST;
 
-    ESP_LOGI(TAG, "Executing on core: %d", xPortGetCoreID());
+    //ESP_LOGI(TAG, "Executing on core: %d", xPortGetCoreID());
 
     for( ;; ) {
         if(iboost_information.b_is_address_valid) {
