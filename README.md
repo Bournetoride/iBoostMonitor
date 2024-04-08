@@ -42,7 +42,7 @@ Wiring diagram provided by my [wife](https://www.redbubble.com/people/quirkytale
 ## Frequency tuning
 
 The CC1101 modules can be a little off with the frequency.  This affects the quality of the received packets and can dramatically decrease the range at which you can receive packets from the iBoost.
-You can buy a better Xtal like an Epson X1E0000210666 from Farnell (2471832), or change the frequency in initialisation. For my module I needed to set the frequency to 838.35MHz, I wasn't prepared to do any SMD soldering!
+You can buy a better Xtal like an Epson X1E0000210666 from Farnell (2471832), or change the frequency in initialisation. For my module I needed to set the frequency to 868.35MHz, I wasn't prepared to do any SMD soldering!
 
 Below are some suggested values.  The default is/should be 868300000 Hz.
 
