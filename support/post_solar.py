@@ -19,7 +19,7 @@ import paho.mqtt.client as mqtt
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 # api-endpoint
-API_ENDPOINT = "https://www.quirkyquipu.co.uk/solar?appid=404d4772-40b2-405e-a6d4-c1b940b5f857&action=update"
+API_ENDPOINT = ''
 
 # mqtt 
 user = 'solar'
