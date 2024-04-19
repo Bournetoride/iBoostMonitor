@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include "lwip/apps/sntp.h"
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <Adafruit_NeoPixel.h>
@@ -114,6 +115,7 @@ void connect_to_wifi(void);
 void connect_to_mqtt(void);
 String wifi_connection_status_message(wl_status_t wifi_status);
 static void mqtt_callback(char* topic, byte* message, unsigned int length);
+static void ntpTime(void);
 
 /**
  * @brief Set up everything. SPI, WiFi, MQTT, and CC1101 tasks, queues etc.
@@ -423,7 +425,7 @@ void mqtt_keep_alive_task(void *parameter) {
 
             connect_to_mqtt();
 
-            configTime(0, 0, SNTP_TIME_SERVER);  // connect to ntp time server
+            ntpTime();
             update_local_time();                      // update the local time
     
             led = CLEAR_ERROR;
@@ -930,6 +932,27 @@ void connect_to_wifi(void) {
         WiFi.localIP().toString(), mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
 }
 
+/**
+ * @brief Connect to NTP time server for accurate time.
+ * 
+ */
+static void ntpTime(void) {
+    // According to various forums configTime on the ESP32 does not honor the TX env
+    // configTime(0, 0, SNTP_TIME_SERVER);
+
+    // Set timezone - London for us
+    setenv("TZ", "GMT0BST,M3.5.0/1,M10.5.0", 1);
+    tzset();
+
+  // configTime on the ESP32 does not honor the TZ env, unlike the ESP8266
+  
+    sntp_stop(); 
+    sntp_setoperatingmode(SNTP_OPMODE_POLL); 
+
+    sntp_setservername(0, SNTP_TIME_SERVER); 
+ 
+    sntp_init(); 
+}
 
 /**
  * @brief Convert wifi_connection_status_message
