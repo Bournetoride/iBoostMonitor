@@ -1,8 +1,8 @@
-var http = require('http');
+var https = require('https');
 var url = require('url');
 var fs = require('fs');
 
-var server = http.createServer(function(req, res) {
+var server = https.createServer(function(req, res) {
     var q = url.parse(req.url, true);   // true to get query as object
     var qdata = q.query;                // retrun an object
 

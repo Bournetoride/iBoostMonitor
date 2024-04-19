@@ -10,8 +10,9 @@ import minimalmodbus
 import serial
 import time
 import json
+import pytz
 from datetime import datetime
-from datetime import timezone
+#from datetime import timezone
 import paho.mqtt.client as mqtt
 
 # Set logging level
@@ -44,7 +45,9 @@ def modbus_read(instrument):
   Today_KW = 0
 
   #timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-  timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+  #timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+  tz = pytz.timezone('Europe/London')
+  timestamp = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
   # get data from solis
   Today_KW = instrument.read_register(3014, number_of_decimals=1, functioncode=4, signed=False) # Read Today Energy (KWH Total) as 16-Bit
