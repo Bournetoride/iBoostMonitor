@@ -269,6 +269,15 @@ void display_task(void *parameter) {
     bool b_show_date = true;            // Once we have the time, show the date, only needs to be run once
     bool b_heartbeat = true;
 
+    // screen saver variables
+    int x = 0;                       
+    int y = 0;
+    int previous_x = 0;
+    int previous_y = 0;
+    int counter = 0;
+    int text_width = tft.textWidth("22.22 kW / Heating by Solar");
+    // TODO - get text width of each possible string
+
     memset(tx_item, '\0', sizeof(tx_item));
 
     //ESP_LOGI(TAGS, "Executing on core: %d", xPortGetCoreID());
@@ -327,10 +336,41 @@ void display_task(void *parameter) {
 
     for ( ;; ) {
         if (b_screen_saver_is_active) {
-            if (millis() - check_matrix >= update_matrix) {  // time has elapsed, update display
-                check_matrix = millis();
-                matrix();
+            if (counter++ > 50) {
+                counter = 0;
+
+                x = random(1, 478 - text_width);
+                y = random(1, 280);
+
+                // Clear last text                    
+                tft.setTextColor(TFT_BLUE, TFT_BLACK);
+                tft.setCursor(previous_x, previous_y, 2);
+                tft.setTextSize(1);
+                tft.print("                              ");
+                
+                tft.setCursor(x, y, 2);   // position and font
+                tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                tft.setTextSize(1);
+                tft.print(solar.pv_today);
+                if (solar.b_water_tank_flag) {
+                    tft.print(" kW / Heating by Solar");
+                } else if (solar.water_tank_status == IB_WT_OFF) {
+                    tft.print(" kW / Heating Off");
+                } else if (solar.water_tank_status == IB_WT_HOT) {
+                    tft.print(" kW / Tank is HOT");
+                } else {
+                    tft.print(" kW");
+                }
+
+                previous_x = x;
+                previous_y = y;
             }
+            // LETS TRY DOING NOTHING
+
+            // if (millis() - check_matrix >= update_matrix) {  // time has elapsed, update display
+            //     check_matrix = millis();
+            //     matrix();
+            // }
         } else { // check flags and update display as appropriate
             if (solar.b_update_pv_today) {
                 print_pv_today();
@@ -464,7 +504,10 @@ void display_task(void *parameter) {
 
         electricity_event_handler();
 
+        // JUST A DARK SCREEN FOR SCREEN SAVER SO DELAY A BIT LONGER NOW
         vTaskDelay(30 / portTICK_PERIOD_MS);
+
+        // vTaskDelay(30 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }
@@ -890,17 +933,19 @@ static void initialise_screen(void) {
  */
 static void setup_screen_saver(void) {
     b_screen_saver_is_active = true;
-            
+
     tft.fillScreen(TFT_BLACK);
 
-    for (int j = 0; j < MAX_COL; j++) {
-        for (int i = 0; i < MAX_CHR; i++) {
-            chr_map[j][i] = 0;
-            color_map[j][i] = 0;
-        }
+    // tft.fillScreen(TFT_BLACK);
 
-        color_map[j][0] = 63;
-    }
+    // for (int j = 0; j < MAX_COL; j++) {
+    //     for (int i = 0; i < MAX_CHR; i++) {
+    //         chr_map[j][i] = 0;
+    //         color_map[j][i] = 0;
+    //     }
+
+    //     color_map[j][0] = 63;
+    // }
 }
 
 /**
