@@ -129,6 +129,11 @@ void setup() {
 
     memset(tx_item, '\0', sizeof(tx_item));
 
+    ESP_LOGI(TAG, "[APP] Startup..");
+    ESP_LOGI(TAG, "[APP] Free memory: %" PRIu32 " bytes", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "[APP] Chip Model: %s  Chip Revision: %d  CPU Freq: %d", ESP.getChipModel(), ESP.getChipRevision(), ESP.getCpuFreqMHz());
+    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+
     // Initialise WS2812B strip object (REQUIRED)    
     ws2812b.begin();
     ws2812b.show();
@@ -400,14 +405,13 @@ void mqtt_keep_alive_task(void *parameter) {
     //ESP_LOGI(TAG, "Executing on core: %d", xPortGetCoreID());
 
     // setting must be set before a mqtt connection is made
-    mqtt_client.setKeepAlive( 90 ); // setting keep alive to 90 seconds makes for a very reliable connection.
+    mqtt_client.setKeepAlive( 30 ); // setting keep alive to 30 seconds.
     mqtt_client.setBufferSize( 256 );
     mqtt_client.setSocketTimeout( 15 );
     for( ;; ) {
         //check for a is-connected and if the WiFi 'thinks' its connected, found checking on both is more realible than just a single check
-        if ((WiFi.status() == WL_CONNECTED) && (mqtt_client.connected()))
-
-        {   // while MQTTlient.loop() is running no other mqtt operations should be in process
+        if ((WiFi.status() == WL_CONNECTED) && (mqtt_client.connected())) { 
+            // while MQTTlient.loop() is running no other mqtt operations should be in process
             xSemaphoreTake(keep_alive_mqtt_semaphore, portMAX_DELAY); 
             mqtt_client.loop();
             xSemaphoreGive(keep_alive_mqtt_semaphore);
@@ -439,7 +443,7 @@ void mqtt_keep_alive_task(void *parameter) {
 
             xQueueSend(ws2812b_queue, &led, 0);
         }
-        vTaskDelay(500 / portTICK_PERIOD_MS); //task runs approx every 500 mS
+        vTaskDelay(100 / portTICK_PERIOD_MS); //task runs approx every 100 mS
 
         // ESP_LOGI(TAG, "## MQTT Task Stack Left: %d", uxTaskGetStackHighWaterMark(NULL));
     }
@@ -739,9 +743,11 @@ void transmit_packet_task(void *parameter) {
             delay(5);
             radio.strobe(CC1101_SWOR);
             delay(5);
-            radio.strobe(CC1101_SFRX);
-            radio.strobe(CC1101_SIDLE);
-            radio.strobe(CC1101_SRX);       // Re-enable receive
+            // radio.strobe(CC1101_SFRX);
+            // radio.strobe(CC1101_SIDLE);
+            // radio.strobe(CC1101_SRX);       // Re-enable receive
+
+            radio.setRXstate();
 
             switch (request) {
                 case SAVED_TODAY:
