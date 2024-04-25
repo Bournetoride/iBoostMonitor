@@ -113,7 +113,7 @@ void ws2812b_task(void *parameter);
 void radio_setup();
 void connect_to_wifi(void);
 void connect_to_mqtt(void);
-String wifi_connection_status_message(wl_status_t wifi_status);
+char * wifi_connection_status_message(wl_status_t wifi_status);
 static void mqtt_callback(char* topic, byte* message, unsigned int length);
 static void ntpTime(void);
 
@@ -418,12 +418,14 @@ void mqtt_keep_alive_task(void *parameter) {
         } else {       
             led = ERROR;
             xQueueSend(ws2812b_queue, &led, 0);
-            wl_status_t status = WiFi.status();
+            wl_status_t wifi_status = WiFi.status();
+            char * p_status = wifi_connection_status_message(wifi_status);
             ESP_LOGI(TAG, "MQTT keep alive: MQTT %s,  WiFi %s", 
                     mqtt_client.connected() ? "Connected" : "Not Connected", 
-                    wifi_connection_status_message(status)
-            );
-            if (!(status == WL_CONNECTED)) {
+                    p_status);
+            free(p_status);
+
+            if (!(wifi_status == WL_CONNECTED)) {
                 connect_to_wifi();
             }
 
@@ -963,39 +965,40 @@ static void ntpTime(void) {
 /**
  * @brief Convert wifi_connection_status_message
  * 
- * @param String Status of WiFi connection
+ * @param char * Status of WiFi connection
  */
-String wifi_connection_status_message(wl_status_t wifi_status) {
-    String status = "Replace with status";
+char * wifi_connection_status_message(wl_status_t wifi_status) {
+    char status[20];
+    memset(status, '\0', sizeof(status));
 
     switch (wifi_status) {
         case WL_IDLE_STATUS:
-            status = "Idle";        
+            strcpy(status, "Idle");        
         break;
         case WL_NO_SSID_AVAIL:
-            status = "No SSID Available";        
+            strcpy(status, "No SSID Available");        
         break;
         case WL_SCAN_COMPLETED:
-            status = "Scan Completed";        
+            strcpy(status, "Scan Completed");        
         break;
         case WL_CONNECTED:
-            status = "Connected";        
+            strcpy(status, "Connected");        
         break;
         case WL_CONNECT_FAILED:
-            status = "Connection Failed";        
+            strcpy(status, "Connection Failed");        
         break;
         case WL_CONNECTION_LOST:
-            status = "Connection Lost";        
+            strcpy(status, "Connection Lost");        
         break;
         case WL_DISCONNECTED:
-            status = "Disconnected";        
+            strcpy(status, "Disconnected");        
         break;               
         default:
-            status = "Unknown";
+            strcpy(status, "Unknown");
         break;
     }
 
-    return status;
+    return strdup(status);
 }
 
 /**
