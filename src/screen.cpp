@@ -276,7 +276,7 @@ void display_task(void *parameter) {
     int previous_y = 0;
     int previous_text_width = 0;
     int counter = 0;
-    uint8_t font_size = 2;
+    uint8_t font_size = 4;
     uint8_t text_size = 1;
     int text_width = tft.textWidth("22.22 kW / Heating by Solar", font_size);
     // TODO - get text width of each possible string
@@ -346,7 +346,7 @@ void display_task(void *parameter) {
                 counter = 0;
 
                 x = random(1, 478 - text_width);
-                y = random(1, 280);
+                y = random(1, 295);
 
                 // Clear last text                    
                 tft.fillRect(previous_x, previous_y-5, text_width, 30, TFT_BLACK);
