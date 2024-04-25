@@ -274,8 +274,11 @@ void display_task(void *parameter) {
     int y = 0;
     int previous_x = 0;
     int previous_y = 0;
+    int previous_text_width = 0;
     int counter = 0;
-    int text_width = tft.textWidth("22.22 kW / Heating by Solar");
+    uint8_t font_size = 2;
+    uint8_t text_size = 1;
+    int text_width = tft.textWidth("22.22 kW / Heating by Solar", font_size);
     // TODO - get text width of each possible string
 
     memset(tx_item, '\0', sizeof(tx_item));
@@ -329,44 +332,49 @@ void display_task(void *parameter) {
     vertical_line_sprite.drawLine(0, 0, 0, 44, TFT_CYAN);
 
     initialise_screen(); 
-    
+        
+    ESP_LOGI(TAGS, "text_width: %d", text_width);
+
     ESP_LOGI(TAGS, "Display Initialisation Complete");
 
     inactive_timer = millis();     // start inactivity timer for turning on the screen saver
 
     for ( ;; ) {
         if (b_screen_saver_is_active) {
-            if (counter++ > 50) {
+            // Move screen saver message every 2 seconds (60 x vTaskDelay below)
+            if (counter++ > 60) {   
                 counter = 0;
 
                 x = random(1, 478 - text_width);
                 y = random(1, 280);
 
                 // Clear last text                    
-                tft.setTextColor(TFT_BLUE, TFT_BLACK);
-                tft.setCursor(previous_x, previous_y, 2);
-                tft.setTextSize(1);
-                tft.print("                              ");
+                tft.fillRect(previous_x, previous_y-5, text_width, 30, TFT_BLACK);
                 
-                tft.setCursor(x, y, 2);   // position and font
-                tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                tft.setTextSize(1);
-                tft.print(solar.pv_today);
+                tft.setCursor(x, y, font_size);   // position and font
+                tft.setTextSize(text_size);
                 if (solar.b_water_tank_flag) {
+                    tft.setTextColor(TFT_GREEN_ENERGY, TFT_BLACK);
+                    tft.print(solar.pv_today);
                     tft.print(" kW / Heating by Solar");
                 } else if (solar.water_tank_status == IB_WT_OFF) {
+                    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+                    tft.print(solar.pv_today);
                     tft.print(" kW / Heating Off");
                 } else if (solar.water_tank_status == IB_WT_HOT) {
+                    tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+                    tft.print(solar.pv_today);
                     tft.print(" kW / Tank is HOT");
                 } else {
+                    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                    tft.print(solar.pv_today);
                     tft.print(" kW");
                 }
 
                 previous_x = x;
                 previous_y = y;
             }
-            // LETS TRY DOING NOTHING
-
+            // Matrix is nice but takes too long to draw!!
             // if (millis() - check_matrix >= update_matrix) {  // time has elapsed, update display
             //     check_matrix = millis();
             //     matrix();
