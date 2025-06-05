@@ -15,7 +15,7 @@
 #define SS_PIN 5
 #define MISO_PIN 19
 
-#define MAGIC_NUMBER 380 // value used to conert iBoost value to watts
+#define MAGIC_NUMBER 380 // value used to convert iBoost value to watts
 
 CC1101 radio(SS_PIN,  MISO_PIN);
 
